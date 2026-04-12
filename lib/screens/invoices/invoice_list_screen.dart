@@ -20,25 +20,24 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
   String _search = '';
   String _statusFilter = 'all';
   String? _monthFilter;
+  String? _clientFilter; // null = all clients
 
   @override
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
-        final s = provider.s;
+        final s   = provider.s;
         final sym = provider.settings.currencySymbol;
 
-        var filtered = provider.invoices.where((inv) {
+        final filtered = provider.invoices.where((inv) {
           final client = provider.store.findClient(inv.clientId);
           final matchSearch = _search.isEmpty ||
               inv.number.toLowerCase().contains(_search.toLowerCase()) ||
-              (client?.name.toLowerCase().contains(_search.toLowerCase()) ??
-                  false);
-          final matchStatus =
-              _statusFilter == 'all' || inv.status.name == _statusFilter;
-          final matchMonth =
-              _monthFilter == null || inv.date.startsWith(_monthFilter!);
-          return matchSearch && matchStatus && matchMonth;
+              (client?.name.toLowerCase().contains(_search.toLowerCase()) ?? false);
+          final matchStatus = _statusFilter == 'all' || inv.status.name == _statusFilter;
+          final matchMonth  = _monthFilter == null || inv.date.startsWith(_monthFilter!);
+          final matchClient = _clientFilter == null || inv.clientId == _clientFilter;
+          return matchSearch && matchStatus && matchMonth && matchClient;
         }).toList();
 
         return Scaffold(
@@ -47,10 +46,10 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
             actions: [
               IconButton(
                 icon: const Icon(Icons.picture_as_pdf_outlined),
-                tooltip: s.monthlyExport,
-                onPressed: _monthFilter == null
+                tooltip: 'Export PDF',
+                onPressed: filtered.isEmpty
                     ? null
-                    : () => _exportMonthly(context, provider, filtered),
+                    : () => _showExportSheet(context, provider, filtered),
               ),
               IconButton(
                 icon: const Icon(Icons.add),
@@ -62,12 +61,13 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
           ),
           body: Column(
             children: [
-              // ── Filters ──────────────────────────────────────────────
+              // ── Filters ────────────────────────────────────────────────────
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Search
                     TextField(
                       decoration: InputDecoration(
                         hintText: s.search,
@@ -76,7 +76,9 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                       ),
                       onChanged: (v) => setState(() => _search = v),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
+
+                    // Status + Month row
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
@@ -84,35 +86,36 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                           _FilterChip(
                             label: 'All',
                             selected: _statusFilter == 'all',
-                            onTap: () =>
-                                setState(() => _statusFilter = 'all'),
+                            onTap: () => setState(() => _statusFilter = 'all'),
                           ),
                           const SizedBox(width: 6),
                           _FilterChip(
                             label: s.draft,
                             selected: _statusFilter == 'draft',
-                            onTap: () =>
-                                setState(() => _statusFilter = 'draft'),
+                            onTap: () => setState(() => _statusFilter = 'draft'),
                           ),
                           const SizedBox(width: 6),
                           _FilterChip(
                             label: s.pending,
                             selected: _statusFilter == 'pending',
-                            onTap: () =>
-                                setState(() => _statusFilter = 'pending'),
+                            onTap: () => setState(() => _statusFilter = 'pending'),
                           ),
                           const SizedBox(width: 6),
                           _FilterChip(
                             label: s.paid,
                             selected: _statusFilter == 'paid',
-                            onTap: () =>
-                                setState(() => _statusFilter = 'paid'),
+                            onTap: () => setState(() => _statusFilter = 'paid'),
                           ),
                           const SizedBox(width: 12),
+                          // Month picker
                           OutlinedButton.icon(
                             icon: const Icon(Icons.calendar_month, size: 16),
-                            label: Text(_monthFilter ?? s.monthlyExport,
-                                style: const TextStyle(fontSize: 12)),
+                            label: Text(
+                              _monthFilter == null
+                                  ? 'Month'
+                                  : _monthLabel(_monthFilter!),
+                              style: const TextStyle(fontSize: 12),
+                            ),
                             onPressed: () => _pickMonth(context),
                             style: OutlinedButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(
@@ -120,22 +123,81 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                           ),
                           if (_monthFilter != null) ...[
                             const SizedBox(width: 4),
-                            IconButton(
-                              icon: const Icon(Icons.close, size: 16),
-                              onPressed: () =>
-                                  setState(() => _monthFilter = null),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
+                            GestureDetector(
+                              onTap: () => setState(() => _monthFilter = null),
+                              child: const Icon(Icons.close, size: 16,
+                                  color: AppColors.muted),
                             ),
                           ],
                         ],
                       ),
                     ),
+                    const SizedBox(height: 8),
+
+                    // Client filter row
+                    if (provider.clients.isNotEmpty)
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            const Text('Client:',
+                                style: TextStyle(
+                                    fontSize: 12, color: AppColors.muted)),
+                            const SizedBox(width: 8),
+                            _FilterChip(
+                              label: 'All',
+                              selected: _clientFilter == null,
+                              onTap: () => setState(() => _clientFilter = null),
+                            ),
+                            ...provider.clients.map((c) {
+                              return Padding(
+                                padding: const EdgeInsets.only(left: 6),
+                                child: _FilterChip(
+                                  label: c.name,
+                                  selected: _clientFilter == c.id,
+                                  onTap: () =>
+                                      setState(() => _clientFilter = c.id),
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 10),
                   ],
                 ),
               ),
+
+              // Active filter summary badge
+              if (_hasActiveFilter)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                  child: Row(
+                    children: [
+                      Icon(Icons.filter_alt,
+                          size: 14, color: AppColors.forest),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${filtered.length} invoice${filtered.length == 1 ? '' : 's'} shown',
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.slate),
+                      ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: _clearFilters,
+                        child: const Text('Clear all',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.forest,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                    ],
+                  ),
+                ),
+
               const Divider(height: 1),
-              // ── List ──────────────────────────────────────────────────
+
+              // ── Invoice list ────────────────────────────────────────────────
               Expanded(
                 child: filtered.isEmpty
                     ? EmptyState(
@@ -147,22 +209,18 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                     : ListView.separated(
                         padding: const EdgeInsets.all(12),
                         itemCount: filtered.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 6),
+                        separatorBuilder: (_, __) => const SizedBox(height: 6),
                         itemBuilder: (ctx, i) {
-                          final inv = filtered[i];
-                          final client =
-                              provider.store.findClient(inv.clientId);
+                          final inv    = filtered[i];
+                          final client = provider.store.findClient(inv.clientId);
                           return _InvoiceCard(
                             invoice: inv,
                             clientName: client?.name ?? '—',
                             sym: sym,
                             isKh: provider.isKh,
-                            onTap: () =>
-                                context.push('/invoices/${inv.id}'),
+                            onTap: () => context.push('/invoices/${inv.id}'),
                             onDelete: () async {
-                              final ok = await showDeleteDialog(
-                                  context,
+                              final ok = await showDeleteDialog(context,
                                   itemName: 'Invoice');
                               if (ok && context.mounted) {
                                 await provider.deleteInvoice(inv.id);
@@ -183,8 +241,23 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
     );
   }
 
+  bool get _hasActiveFilter =>
+      _statusFilter != 'all' ||
+      _monthFilter != null ||
+      _clientFilter != null ||
+      _search.isNotEmpty;
+
+  void _clearFilters() {
+    setState(() {
+      _search       = '';
+      _statusFilter = 'all';
+      _monthFilter  = null;
+      _clientFilter = null;
+    });
+  }
+
   Future<void> _pickMonth(BuildContext context) async {
-    final now = DateTime.now();
+    final now    = DateTime.now();
     final picked = await showDatePicker(
       context: context,
       initialDate: now,
@@ -200,17 +273,163 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
     }
   }
 
-  Future<void> _exportMonthly(
-    BuildContext context,
-    AppProvider provider,
-    List<Invoice> invoices,
-  ) async {
-    if (invoices.isEmpty) return;
-    final bytes = await PdfService.generateMonthlyReport(
-      invoices: invoices,
+  // ── Export bottom sheet ────────────────────────────────────────────────────
+  void _showExportSheet(
+      BuildContext context, AppProvider provider, List<Invoice> filtered) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => _ExportSheet(
+        provider: provider,
+        filtered: filtered,
+        statusFilter: _statusFilter,
+        monthFilter: _monthFilter,
+        clientFilter: _clientFilter,
+      ),
+    );
+  }
+
+  String _monthLabel(String month) {
+    try {
+      return DateFormat('MMM yyyy').format(DateTime.parse('$month-01'));
+    } catch (_) {
+      return month;
+    }
+  }
+}
+
+// ── Export bottom sheet ────────────────────────────────────────────────────────
+class _ExportSheet extends StatelessWidget {
+  final AppProvider provider;
+  final List<Invoice> filtered;
+  final String statusFilter;
+  final String? monthFilter;
+  final String? clientFilter;
+
+  const _ExportSheet({
+    required this.provider,
+    required this.filtered,
+    required this.statusFilter,
+    required this.monthFilter,
+    required this.clientFilter,
+  });
+
+  String get _exportTitle {
+    final parts = <String>[];
+    if (monthFilter != null) {
+      try {
+        parts.add(DateFormat('MMMM yyyy')
+            .format(DateTime.parse('$monthFilter-01')));
+      } catch (_) {
+        parts.add(monthFilter!);
+      }
+    }
+    if (clientFilter != null) {
+      final c = provider.store.findClient(clientFilter!);
+      if (c != null) parts.add(c.name);
+    }
+    if (statusFilter != 'all') {
+      parts.add('${statusFilter[0].toUpperCase()}${statusFilter.substring(1)}');
+    }
+    return parts.isEmpty ? 'All Invoices' : parts.join(' · ');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sym = provider.settings.currencySymbol;
+    final fmt = NumberFormat('#,##0.00');
+    final totalRevenue = filtered.fold<double>(0, (s, i) => s + i.total);
+    final paidCount = filtered.where((i) => i.status == InvoiceStatus.paid).length;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Handle bar
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Title
+          Row(
+            children: [
+              const Icon(Icons.picture_as_pdf_outlined,
+                  color: AppColors.forest, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Export Invoices',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(_exportTitle,
+                        style: const TextStyle(
+                            color: AppColors.muted, fontSize: 13)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Summary stats
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.pale,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _StatItem(label: 'Invoices', value: '${filtered.length}'),
+                _StatItem(
+                    label: 'Revenue',
+                    value: '$sym${fmt.format(totalRevenue)}'),
+                _StatItem(label: 'Paid', value: '$paidCount'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Export button
+          ElevatedButton.icon(
+            onPressed: () => _export(context),
+            icon: const Icon(Icons.download),
+            label: Text('Export ${filtered.length} Invoice${filtered.length == 1 ? '' : 's'} as PDF'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _export(BuildContext context) async {
+    Navigator.pop(context);
+    final bytes = await PdfService.generateBatchReport(
+      invoices: filtered,
       allClients: provider.store.clients,
       settings: provider.settings,
-      month: _monthFilter!,
+      title: _exportTitle,
     );
     if (context.mounted) {
       await Printing.layoutPdf(onLayout: (_) => bytes);
@@ -218,6 +437,28 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
   }
 }
 
+class _StatItem extends StatelessWidget {
+  final String label;
+  final String value;
+  const _StatItem({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(value,
+            style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: AppColors.forest)),
+        Text(label,
+            style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+      ],
+    );
+  }
+}
+
+// ── Filter chip ────────────────────────────────────────────────────────────────
 class _FilterChip extends StatelessWidget {
   final String label;
   final bool selected;
@@ -239,6 +480,7 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
+// ── Invoice card ────────────────────────────────────────────────────────────────
 class _InvoiceCard extends StatelessWidget {
   final Invoice invoice;
   final String clientName;
@@ -258,7 +500,7 @@ class _InvoiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fmt = NumberFormat('#,##0.00');
+    final fmt     = NumberFormat('#,##0.00');
     final dateFmt = DateFormat('dd/MM/yyyy');
     String dateStr = invoice.date;
     try {
@@ -300,13 +542,13 @@ class _InvoiceCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       '$clientName  •  $dateStr',
-                      style: TextStyle(
+                      style: const TextStyle(
                           color: AppColors.muted, fontSize: 12),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${invoice.items.length} items',
-                      style: TextStyle(
+                      '${invoice.items.length} item${invoice.items.length == 1 ? '' : 's'}',
+                      style: const TextStyle(
                           color: AppColors.muted, fontSize: 11),
                     ),
                   ],
