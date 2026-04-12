@@ -47,9 +47,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
               IconButton(
                 icon: const Icon(Icons.picture_as_pdf_outlined),
                 tooltip: 'Export PDF',
-                onPressed: filtered.isEmpty
-                    ? null
-                    : () => _showExportSheet(context, provider, filtered),
+                onPressed: () => _showExportSheet(context, provider),
               ),
               IconButton(
                 icon: const Icon(Icons.add),
@@ -259,19 +257,13 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
   }
 
   // ── Export bottom sheet ────────────────────────────────────────────────────
-  void _showExportSheet(
-      BuildContext context, AppProvider provider, List<Invoice> filtered) {
+  void _showExportSheet(BuildContext context, AppProvider provider) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (ctx) => _ExportSheet(
-        provider: provider,
-        filtered: filtered,
-        statusFilter: _statusFilter,
-        monthFilter: _monthFilter,
-        clientFilter: _clientFilter,
-      ),
+      builder: (ctx) => _ExportSheet(provider: provider),
     );
   }
 
@@ -285,59 +277,96 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
 }
 
 // ── Export bottom sheet ────────────────────────────────────────────────────────
-class _ExportSheet extends StatelessWidget {
+class _ExportSheet extends StatefulWidget {
   final AppProvider provider;
-  final List<Invoice> filtered;
-  final String statusFilter;
-  final String? monthFilter;
-  final String? clientFilter;
 
-  const _ExportSheet({
-    required this.provider,
-    required this.filtered,
-    required this.statusFilter,
-    required this.monthFilter,
-    required this.clientFilter,
-  });
+  const _ExportSheet({required this.provider});
 
-  String get _exportTitle {
+  @override
+  State<_ExportSheet> createState() => _ExportSheetState();
+}
+
+class _ExportSheetState extends State<_ExportSheet> {
+  String? _month;   // 'yyyy-MM' or null = all
+  String? _clientId; // null = all clients
+  bool _exporting = false;
+
+  AppProvider get p => widget.provider;
+
+  List<Invoice> get _matched {
+    return p.invoices.where((inv) {
+      final matchMonth  = _month == null || inv.date.startsWith(_month!);
+      final matchClient = _clientId == null || inv.clientId == _clientId;
+      return matchMonth && matchClient;
+    }).toList();
+  }
+
+  String get _title {
     final parts = <String>[];
-    if (monthFilter != null) {
+    if (_month != null) {
       try {
-        parts.add(DateFormat('MMMM yyyy')
-            .format(DateTime.parse('$monthFilter-01')));
-      } catch (_) {
-        parts.add(monthFilter!);
-      }
+        parts.add(DateFormat('MMMM yyyy').format(DateTime.parse('$_month-01')));
+      } catch (_) { parts.add(_month!); }
     }
-    if (clientFilter != null) {
-      final c = provider.store.findClient(clientFilter!);
+    if (_clientId != null) {
+      final c = p.store.findClient(_clientId);
       if (c != null) parts.add(c.name);
-    }
-    if (statusFilter != 'all') {
-      parts.add('${statusFilter[0].toUpperCase()}${statusFilter.substring(1)}');
     }
     return parts.isEmpty ? 'All Invoices' : parts.join(' · ');
   }
 
+  String _monthLabel(String m) {
+    try { return DateFormat('MMM yyyy').format(DateTime.parse('$m-01')); }
+    catch (_) { return m; }
+  }
+
+  /// Distinct months that appear in the invoice list, newest first.
+  List<String> get _availableMonths {
+    final months = p.invoices
+        .map((inv) => inv.date.length >= 7 ? inv.date.substring(0, 7) : null)
+        .whereType<String>()
+        .toSet()
+        .toList()
+      ..sort((a, b) => b.compareTo(a));
+    return months;
+  }
+
+  Future<void> _export() async {
+    final invoices = _matched;
+    if (invoices.isEmpty) return;
+    setState(() => _exporting = true);
+    Navigator.pop(context);
+    try {
+      final bytes = await PdfService.generateBatchReport(
+        invoices:   invoices,
+        allClients: p.store.clients,
+        brickTypes: p.store.brickTypes,
+        settings:   p.settings,
+        title:      _title,
+      );
+      if (mounted) await Printing.layoutPdf(onLayout: (_) => bytes);
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final sym = provider.settings.currencySymbol;
-    final fmt = NumberFormat('#,##0.00');
-    final totalRevenue = filtered.fold<double>(0, (s, i) => s + i.total);
-    final paidCount = filtered.where((i) => i.paymentStatus == PaymentStatus.paid).length;
+    final sym     = p.settings.currencySymbol;
+    final fmt     = NumberFormat('#,##0.00');
+    final matched = _matched;
+    final total   = matched.fold<double>(0, (s, i) => s + i.total);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Handle bar
+          // Handle
           Center(
             child: Container(
-              width: 40,
-              height: 4,
+              width: 40, height: 4,
               decoration: BoxDecoration(
                 color: AppColors.border,
                 borderRadius: BorderRadius.circular(2),
@@ -346,99 +375,118 @@ class _ExportSheet extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // Title
-          Row(
+          // Title row
+          const Row(
             children: [
-              const Icon(Icons.picture_as_pdf_outlined,
+              Icon(Icons.picture_as_pdf_outlined,
                   color: AppColors.forest, size: 22),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Export Invoices',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text(_exportTitle,
-                        style: const TextStyle(
-                            color: AppColors.muted, fontSize: 13)),
-                  ],
-                ),
-              ),
+              SizedBox(width: 10),
+              Text('Export Invoices',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ],
-          ),
-          const SizedBox(height: 16),
-
-          // Summary stats
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.pale,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _StatItem(label: 'Invoices', value: '${filtered.length}'),
-                _StatItem(
-                    label: 'Revenue',
-                    value: '$sym${fmt.format(totalRevenue)}'),
-                _StatItem(label: 'Paid', value: '$paidCount'),
-              ],
-            ),
           ),
           const SizedBox(height: 20),
 
-          // Export button
-          ElevatedButton.icon(
-            onPressed: () => _export(context),
-            icon: const Icon(Icons.download),
-            label: Text('Export ${filtered.length} Invoice${filtered.length == 1 ? '' : 's'} as PDF'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
+          // ── Month filter ────────────────────────────────────────────
+          const Text('Month',
+              style: TextStyle(fontSize: 12, color: AppColors.muted,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          DropdownButtonFormField<String?>(
+            value: _month,
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.calendar_month_outlined, size: 18),
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+            ),
+            items: [
+              const DropdownMenuItem<String?>(
+                  value: null, child: Text('All months')),
+              ..._availableMonths.map((m) => DropdownMenuItem<String?>(
+                  value: m, child: Text(_monthLabel(m)))),
+            ],
+            onChanged: (v) => setState(() => _month = v),
+          ),
+          const SizedBox(height: 16),
+
+          // ── Client filter ───────────────────────────────────────────
+          const Text('Client',
+              style: TextStyle(fontSize: 12, color: AppColors.muted,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          DropdownButtonFormField<String?>(
+            value: _clientId,
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.person_outline, size: 18),
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+            ),
+            items: [
+              const DropdownMenuItem<String?>(
+                  value: null, child: Text('All clients')),
+              ...p.clients.map((c) => DropdownMenuItem<String?>(
+                  value: c.id, child: Text(c.name))),
+            ],
+            onChanged: (v) => setState(() => _clientId = v),
+          ),
+          const SizedBox(height: 20),
+
+          // ── Preview count ───────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: matched.isEmpty ? AppColors.canvas : AppColors.pale,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  matched.isEmpty
+                      ? Icons.inbox_outlined
+                      : Icons.receipt_long_outlined,
+                  size: 16,
+                  color: matched.isEmpty ? AppColors.muted : AppColors.forest,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    matched.isEmpty
+                        ? 'No invoices match this filter'
+                        : '${matched.length} invoice${matched.length == 1 ? '' : 's'}  •  $sym${fmt.format(total)}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: matched.isEmpty ? AppColors.muted : AppColors.forest,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 16),
+
+          // ── Export button ───────────────────────────────────────────
+          ElevatedButton.icon(
+            onPressed: (matched.isEmpty || _exporting) ? null : _export,
+            icon: _exporting
+                ? const SizedBox(
+                    width: 16, height: 16,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.download, size: 18),
+            label: Text(_exporting
+                ? 'Generating…'
+                : 'Export ${matched.length} Invoice${matched.length == 1 ? '' : 's'} as PDF'),
+            style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14)),
+          ),
+          const SizedBox(height: 8),
           OutlinedButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
         ],
       ),
-    );
-  }
-
-  Future<void> _export(BuildContext context) async {
-    Navigator.pop(context);
-    final bytes = await PdfService.generateBatchReport(
-      invoices: filtered,
-      allClients: provider.store.clients,
-      settings: provider.settings,
-      title: _exportTitle,
-    );
-    if (context.mounted) {
-      await Printing.layoutPdf(onLayout: (_) => bytes);
-    }
-  }
-}
-
-class _StatItem extends StatelessWidget {
-  final String label;
-  final String value;
-  const _StatItem({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(value,
-            style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: AppColors.forest)),
-        Text(label,
-            style: const TextStyle(fontSize: 12, color: AppColors.muted)),
-      ],
     );
   }
 }
