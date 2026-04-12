@@ -41,6 +41,10 @@ build/
 **/macos/Flutter/GeneratedPluginRegistrant.swift
 **/macos/Flutter/ephemeral/
 
+# IDE
+.idea/
+.metadata
+
 # Secrets / env
 .env
 *.env
