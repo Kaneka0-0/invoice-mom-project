@@ -24,7 +24,6 @@ class _ClientListScreenState extends State<ClientListScreen> {
             .where((c) =>
                 _search.isEmpty ||
                 c.name.toLowerCase().contains(_search.toLowerCase()) ||
-                c.nameKh.contains(_search) ||
                 c.phone.contains(_search))
             .toList();
 
@@ -88,10 +87,6 @@ class _ClientListScreenState extends State<ClientListScreen> {
                                 crossAxisAlignment:
                                     CrossAxisAlignment.start,
                                 children: [
-                                  if (c.nameKh.isNotEmpty)
-                                    Text(c.nameKh,
-                                        style: const TextStyle(
-                                            fontSize: 12)),
                                   if (c.phone.isNotEmpty)
                                     Text(c.phone,
                                         style: const TextStyle(

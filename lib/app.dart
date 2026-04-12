@@ -18,6 +18,11 @@ import 'screens/vendors/vendor_list_screen.dart';
 import 'screens/vendors/vendor_form_screen.dart';
 import 'screens/borrows/borrow_list_screen.dart';
 import 'screens/borrows/borrow_form_screen.dart';
+import 'screens/workers/worker_advances_screen.dart';
+import 'screens/brick_types/brick_type_list_screen.dart';
+import 'screens/brick_types/brick_type_form_screen.dart';
+import 'screens/deliveries/delivery_list_screen.dart';
+import 'screens/deliveries/delivery_form_screen.dart';
 import 'screens/settings_screen.dart';
 
 class PanhaApp extends StatelessWidget {
@@ -83,9 +88,16 @@ class PanhaApp extends StatelessWidget {
           GoRoute(path: '/vendors',             builder: (_, __) => const VendorListScreen()),
           GoRoute(path: '/vendors/new',         builder: (_, __) => const VendorFormScreen()),
           GoRoute(path: '/vendors/:id/edit',    builder: (_, s) => VendorFormScreen(id: s.pathParameters['id'])),
-          GoRoute(path: '/borrows',             builder: (_, __) => const BorrowListScreen()),
-          GoRoute(path: '/borrows/new',         builder: (_, __) => const BorrowFormScreen()),
-          GoRoute(path: '/settings',            builder: (_, __) => const SettingsScreen()),
+          GoRoute(path: '/borrows',                 builder: (_, __) => const BorrowListScreen()),
+          GoRoute(path: '/borrows/new',             builder: (_, __) => const BorrowFormScreen()),
+          GoRoute(path: '/advances',               builder: (_, __) => const WorkerAdvancesScreen()),
+          GoRoute(path: '/deliveries',              builder: (_, __) => const DeliveryListScreen()),
+          GoRoute(path: '/deliveries/new',          builder: (_, __) => const DeliveryFormScreen()),
+          GoRoute(path: '/deliveries/:id/edit',     builder: (_, s) => DeliveryFormScreen(id: s.pathParameters['id'])),
+          GoRoute(path: '/brick-types',             builder: (_, __) => const BrickTypeListScreen()),
+          GoRoute(path: '/brick-types/new',         builder: (_, __) => const BrickTypeFormScreen()),
+          GoRoute(path: '/brick-types/:id/edit',    builder: (_, s) => BrickTypeFormScreen(id: s.pathParameters['id'])),
+          GoRoute(path: '/settings',                builder: (_, __) => const SettingsScreen()),
         ],
       ),
     ],
@@ -101,8 +113,11 @@ const _navItems = [
   _NavItem(icon: Icons.engineering_outlined,       activeIcon: Icons.engineering,              label: 'Workers',  path: '/workers'),
   _NavItem(icon: Icons.local_shipping_outlined,    activeIcon: Icons.local_shipping,           label: 'Cars',     path: '/cars'),
   _NavItem(icon: Icons.store_outlined,             activeIcon: Icons.store,                    label: 'Vendors',  path: '/vendors'),
-  _NavItem(icon: Icons.swap_horiz_outlined,        activeIcon: Icons.swap_horiz,               label: 'Borrows',  path: '/borrows'),
-  _NavItem(icon: Icons.settings_outlined,          activeIcon: Icons.settings,                 label: 'Settings', path: '/settings'),
+  _NavItem(icon: Icons.swap_horiz_outlined,        activeIcon: Icons.swap_horiz,               label: 'Borrows',     path: '/borrows'),
+  _NavItem(icon: Icons.payments_outlined,          activeIcon: Icons.payments,                 label: 'Advances',    path: '/advances'),
+  _NavItem(icon: Icons.local_shipping_outlined,    activeIcon: Icons.local_shipping,           label: 'Deliveries',  path: '/deliveries'),
+  _NavItem(icon: Icons.category_outlined,          activeIcon: Icons.category,                 label: 'Brick Types', path: '/brick-types'),
+  _NavItem(icon: Icons.settings_outlined,          activeIcon: Icons.settings,                 label: 'Settings',    path: '/settings'),
 ];
 
 // ─── App Shell ────────────────────────────────────────────────────────────────
@@ -453,10 +468,13 @@ class _MobileShell extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             ...[
-              _navItems[4], // Cars
-              _navItems[5], // Vendors
-              _navItems[6], // Borrows
-              _navItems[7], // Settings
+              _navItems[4],  // Cars
+              _navItems[5],  // Vendors
+              _navItems[6],  // Borrows
+              _navItems[7],  // Advances
+              _navItems[8],  // Deliveries
+              _navItems[9],  // Brick Types
+              _navItems[10], // Settings
             ].map((item) => ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Container(
@@ -580,8 +598,11 @@ String _navLabel(String path, AppProvider p) {
     '/workers'  => s.workers,
     '/cars'     => s.cars,
     '/vendors'  => s.vendors,
-    '/borrows'  => s.borrows,
-    '/settings' => s.settings,
+    '/borrows'      => s.borrows,
+    '/advances'     => 'Advances',
+    '/deliveries'   => 'Deliveries',
+    '/brick-types'  => 'Brick Types',
+    '/settings'     => s.settings,
     _           => 'More',
   };
 }

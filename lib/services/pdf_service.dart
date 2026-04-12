@@ -23,10 +23,7 @@ class PdfService {
   static Future<Uint8List> generateInvoice({
     required Invoice invoice,
     required Client? client,
-    required Car? car,
-    required List<Worker> workers,
-    required Vendor? borrowVendor,
-    required Borrow? borrow,
+    required List<BrickType> brickTypes,
     required AppSettings settings,
   }) async {
     final doc      = pw.Document(title: invoice.number, author: settings.companyName);
@@ -38,7 +35,8 @@ class PdfService {
       theme: theme,
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.symmetric(horizontal: 28, vertical: 28),
-      build: (ctx) => _buildInvoicePage(invoice: invoice, client: client, settings: settings),
+      build: (ctx) => _buildInvoicePage(
+          invoice: invoice, client: client, brickTypes: brickTypes, settings: settings),
     ));
 
     return doc.save();
@@ -50,6 +48,7 @@ class PdfService {
     required List<Client> allClients,
     required AppSettings settings,
     required String title,
+    List<BrickType> brickTypes = const [],
   }) async {
     final doc     = pw.Document(title: title);
     final regular = await PdfGoogleFonts.interRegular();
@@ -65,6 +64,7 @@ class PdfService {
       build: (ctx) => _buildBatchContent(
         invoices: invoices,
         allClients: allClients,
+        brickTypes: brickTypes,
         settings: settings,
         title: title,
       ),
@@ -79,11 +79,13 @@ class PdfService {
     required List<Client> allClients,
     required AppSettings settings,
     required String month,
+    List<BrickType> brickTypes = const [],
   }) {
     final title = _monthLabel(month);
     return generateBatchReport(
       invoices: invoices,
       allClients: allClients,
+      brickTypes: brickTypes,
       settings: settings,
       title: title,
     );
@@ -93,6 +95,7 @@ class PdfService {
   static pw.Widget _buildInvoicePage({
     required Invoice invoice,
     required Client? client,
+    required List<BrickType> brickTypes,
     required AppSettings settings,
   }) {
     return pw.Column(
@@ -111,7 +114,7 @@ class PdfService {
         ),
         pw.SizedBox(height: 18),
         // Brick items table
-        _brickTable(invoice, settings),
+        _brickTable(invoice, brickTypes, settings),
         pw.SizedBox(height: 14),
         // Totals right-aligned
         pw.Align(
@@ -145,9 +148,6 @@ class PdfService {
               pw.Text(s.companyName,
                   style: pw.TextStyle(
                       color: PdfColors.white, fontSize: 20, fontWeight: pw.FontWeight.bold)),
-              if (s.companyNameKh.isNotEmpty)
-                pw.Text(s.companyNameKh,
-                    style: const pw.TextStyle(color: PdfColors.white, fontSize: 11)),
               pw.SizedBox(height: 4),
               if (s.phone.isNotEmpty)
                 pw.Text('Tel: ${s.phone}',
@@ -204,9 +204,6 @@ class PdfService {
           if (client != null) ...[
             pw.Text(client.name,
                 style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
-            if (client.nameKh.isNotEmpty)
-              pw.Text(client.nameKh,
-                  style: const pw.TextStyle(fontSize: 10, color: _slate)),
             pw.SizedBox(height: 4),
             if (client.phone.isNotEmpty)
               _infoRow('Tel:', client.phone),
@@ -242,15 +239,13 @@ class PdfService {
   }
 
   // ── Simplified brick table ─────────────────────────────────────────────────
-  static pw.Widget _brickTable(Invoice invoice, AppSettings s) {
+  static pw.Widget _brickTable(Invoice invoice, List<BrickType> brickTypes, AppSettings s) {
     const headers = ['Brick Type  •  ប្រភេទឥដ្ឋ', 'Qty (bricks)', 'Unit Price', 'Total'];
 
     final rows = invoice.items.map((item) {
-      final desc = item.descriptionKh.isNotEmpty
-          ? '${item.description}\n${item.descriptionKh}'
-          : item.description;
+      final bt = brickTypes.where((b) => b.id == item.brickTypeId).firstOrNull;
       return [
-        desc,
+        bt?.name ?? 'Brick',
         _intFmt.format(item.quantity),
         '${s.currencySymbol}${_fmt.format(item.unitPrice)}',
         '${s.currencySymbol}${_fmt.format(item.total)}',
@@ -438,13 +433,14 @@ class PdfService {
   static List<pw.Widget> _buildBatchContent({
     required List<Invoice> invoices,
     required List<Client> allClients,
+    required List<BrickType> brickTypes,
     required AppSettings settings,
     required String title,
   }) {
     final sym          = settings.currencySymbol;
     final totalRevenue = invoices.fold<double>(0, (s, i) => s + i.total);
-    final paidCount    = invoices.where((i) => i.status == InvoiceStatus.paid).length;
-    final pendingCount = invoices.where((i) => i.status == InvoiceStatus.pending).length;
+    final paidCount    = invoices.where((i) => i.paymentStatus == PaymentStatus.paid).length;
+    final pendingCount = invoices.where((i) => i.paymentStatus == PaymentStatus.unpaid).length;
 
     return [
       // ── Summary stats row ─────────────────────────────────────────────────
@@ -500,13 +496,16 @@ class PdfService {
             final inv      = entry.value;
             final client   = allClients.where((c) => c.id == inv.clientId).firstOrNull;
             final firstItem = inv.items.isNotEmpty ? inv.items.first : null;
-            final brickType = firstItem?.description ?? '—';
+            final bt = firstItem != null
+                ? brickTypes.where((b) => b.id == firstItem.brickTypeId).firstOrNull
+                : null;
+            final brickType = bt?.name ?? (firstItem != null ? 'Brick' : '—');
             final qty       = firstItem != null
                 ? _intFmt.format(firstItem.quantity)
                 : '—';
-            final statusColor = inv.status == InvoiceStatus.paid
+            final statusColor = inv.paymentStatus == PaymentStatus.paid
                 ? _green
-                : inv.status == InvoiceStatus.pending
+                : inv.paymentStatus == PaymentStatus.unpaid
                     ? _amber
                     : _grey;
 

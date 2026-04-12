@@ -245,13 +245,31 @@ TextStyle khmerStyle({
 // ─── Status helpers ───────────────────────────────────────────────────────────
 
 Color statusColor(String status) => switch (status) {
-      'paid'    => AppColors.success,
-      'pending' => AppColors.warning,
-      _         => AppColors.neutral,
+      'paid'                => AppColors.success,
+      'delivered'           => AppColors.success,
+      'partial'             => AppColors.forest,
+      'confirmed'           => AppColors.forest,
+      'partially_delivered' => AppColors.forest,
+      'loading'             => AppColors.forest,
+      'on_route'            => AppColors.forest,
+      'unpaid'              => AppColors.warning,
+      'pending'             => AppColors.warning,
+      'planned'             => AppColors.neutral,
+      'draft'               => AppColors.neutral,
+      'cancelled'           => AppColors.danger,
+      _                     => AppColors.neutral,
     };
 
 Color statusBg(String status) => switch (status) {
-      'paid'    => const Color(0xFFECFDF5),
-      'pending' => const Color(0xFFFFFBEB),
-      _         => const Color(0xFFF3F4F6),
+      'paid'                => const Color(0xFFECFDF5),
+      'delivered'           => const Color(0xFFECFDF5),
+      'partial'             => const Color(0xFFD8F3DC),
+      'confirmed'           => const Color(0xFFD8F3DC),
+      'partially_delivered' => const Color(0xFFD8F3DC),
+      'loading'             => const Color(0xFFD8F3DC),
+      'on_route'            => const Color(0xFFD8F3DC),
+      'unpaid'              => const Color(0xFFFFFBEB),
+      'pending'             => const Color(0xFFFFFBEB),
+      'cancelled'           => const Color(0xFFFEE2E2),
+      _                     => const Color(0xFFF3F4F6),
     };

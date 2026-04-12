@@ -1,11 +1,12 @@
 // ─── Data Models ──────────────────────────────────────────────────────────────
-// All JSON-serializable models for the brick factory invoice app.
+// JSON keys match Supabase column names exactly (snake_case for most tables;
+// camelCase-quoted for the settings table).
+
+// ─── App Settings ─────────────────────────────────────────────────────────────
 
 class AppSettings {
   String companyName;
-  String companyNameKh;
   String address;
-  String addressKh;
   String phone;
   String email;
   double brickPriceDefault;
@@ -16,9 +17,7 @@ class AppSettings {
 
   AppSettings({
     this.companyName = 'Panha Brick Factory',
-    this.companyNameKh = 'រោងចក្រឥដ្ឋផ្នហា',
     this.address = 'Phnom Penh, Cambodia',
-    this.addressKh = 'ភ្នំពេញ, កម្ពុជា',
     this.phone = '',
     this.email = '',
     this.brickPriceDefault = 0.10,
@@ -28,11 +27,10 @@ class AppSettings {
     this.nextInvoiceNum = 1,
   });
 
+  // Settings table uses quoted camelCase columns — match them exactly.
   Map<String, dynamic> toJson() => {
         'companyName': companyName,
-        'companyNameKh': companyNameKh,
         'address': address,
-        'addressKh': addressKh,
         'phone': phone,
         'email': email,
         'brickPriceDefault': brickPriceDefault,
@@ -44,9 +42,7 @@ class AppSettings {
 
   factory AppSettings.fromJson(Map<String, dynamic> j) => AppSettings(
         companyName: j['companyName'] ?? 'Panha Brick Factory',
-        companyNameKh: j['companyNameKh'] ?? 'រោងចក្រឥដ្ឋផ្នហា',
         address: j['address'] ?? '',
-        addressKh: j['addressKh'] ?? '',
         phone: j['phone'] ?? '',
         email: j['email'] ?? '',
         brickPriceDefault: ((j['brickPriceDefault']) ?? 0.10).toDouble(),
@@ -62,63 +58,48 @@ class AppSettings {
 class Client {
   final String id;
   String name;
-  String nameKh;
   String address;
-  String addressKh;
   String phone;
   String notes;
   final String createdAt;
+  double? latitude;
+  double? longitude;
+  String? googleMapsUrl;
 
   Client({
     required this.id,
     required this.name,
-    this.nameKh = '',
     this.address = '',
-    this.addressKh = '',
     this.phone = '',
     this.notes = '',
     required this.createdAt,
+    this.latitude,
+    this.longitude,
+    this.googleMapsUrl,
   });
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
-        'nameKh': nameKh,
         'address': address,
-        'addressKh': addressKh,
         'phone': phone,
         'notes': notes,
-        'createdAt': createdAt,
+        'created_at': createdAt,
+        'latitude': latitude,
+        'longitude': longitude,
+        'google_maps_url': googleMapsUrl,
       };
 
   factory Client.fromJson(Map<String, dynamic> j) => Client(
         id: j['id'],
         name: j['name'],
-        nameKh: j['nameKh'] ?? '',
         address: j['address'] ?? '',
-        addressKh: j['addressKh'] ?? '',
         phone: j['phone'] ?? '',
         notes: j['notes'] ?? '',
-        createdAt: j['createdAt'],
-      );
-
-  Client copyWith({
-    String? name,
-    String? nameKh,
-    String? address,
-    String? addressKh,
-    String? phone,
-    String? notes,
-  }) =>
-      Client(
-        id: id,
-        name: name ?? this.name,
-        nameKh: nameKh ?? this.nameKh,
-        address: address ?? this.address,
-        addressKh: addressKh ?? this.addressKh,
-        phone: phone ?? this.phone,
-        notes: notes ?? this.notes,
-        createdAt: createdAt,
+        createdAt: j['created_at'] ?? j['createdAt'] ?? '',
+        latitude: (j['latitude'] as num?)?.toDouble(),
+        longitude: (j['longitude'] as num?)?.toDouble(),
+        googleMapsUrl: j['google_maps_url'],
       );
 }
 
@@ -129,27 +110,10 @@ enum WorkerRole { driver, loader, supervisor, other }
 extension WorkerRoleLabel on WorkerRole {
   String get label {
     switch (this) {
-      case WorkerRole.driver:
-        return 'Driver';
-      case WorkerRole.loader:
-        return 'Loader';
-      case WorkerRole.supervisor:
-        return 'Supervisor';
-      case WorkerRole.other:
-        return 'Other';
-    }
-  }
-
-  String get labelKh {
-    switch (this) {
-      case WorkerRole.driver:
-        return 'អ្នកបើកបរ';
-      case WorkerRole.loader:
-        return 'អ្នកដំណើរ';
-      case WorkerRole.supervisor:
-        return 'អ្នកត្រួតពិនិត្យ';
-      case WorkerRole.other:
-        return 'ផ្សេងទៀត';
+      case WorkerRole.driver:     return 'Driver';
+      case WorkerRole.loader:     return 'Loader';
+      case WorkerRole.supervisor: return 'Supervisor';
+      case WorkerRole.other:      return 'Other';
     }
   }
 }
@@ -157,20 +121,16 @@ extension WorkerRoleLabel on WorkerRole {
 class Worker {
   final String id;
   String name;
-  String nameKh;
-  String phone;
   WorkerRole role;
-  String idCard;
+  String phone;
   String notes;
   final String createdAt;
 
   Worker({
     required this.id,
     required this.name,
-    this.nameKh = '',
-    this.phone = '',
     this.role = WorkerRole.loader,
-    this.idCard = '',
+    this.phone = '',
     this.notes = '',
     required this.createdAt,
   });
@@ -178,26 +138,22 @@ class Worker {
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
-        'nameKh': nameKh,
-        'phone': phone,
         'role': role.name,
-        'idCard': idCard,
+        'phone': phone,
         'notes': notes,
-        'createdAt': createdAt,
+        'created_at': createdAt,
       };
 
   factory Worker.fromJson(Map<String, dynamic> j) => Worker(
         id: j['id'],
         name: j['name'],
-        nameKh: j['nameKh'] ?? '',
-        phone: j['phone'] ?? '',
         role: WorkerRole.values.firstWhere(
           (e) => e.name == j['role'],
           orElse: () => WorkerRole.loader,
         ),
-        idCard: j['idCard'] ?? '',
+        phone: j['phone'] ?? '',
         notes: j['notes'] ?? '',
-        createdAt: j['createdAt'],
+        createdAt: j['created_at'] ?? j['createdAt'] ?? '',
       );
 }
 
@@ -208,211 +164,288 @@ class Car {
   String plateNumber;
   int capacity;
   String description;
-  String notes;
+  final String createdAt;
 
   Car({
     required this.id,
     required this.plateNumber,
     this.capacity = 30000,
     this.description = '',
-    this.notes = '',
+    this.createdAt = '',
   });
 
   Map<String, dynamic> toJson() => {
         'id': id,
-        'plateNumber': plateNumber,
+        'plate_number': plateNumber,
         'capacity': capacity,
         'description': description,
-        'notes': notes,
+        'created_at': createdAt,
       };
 
   factory Car.fromJson(Map<String, dynamic> j) => Car(
         id: j['id'],
-        plateNumber: j['plateNumber'],
+        plateNumber: j['plate_number'] ?? j['plateNumber'] ?? '',
         capacity: j['capacity'] ?? 30000,
         description: j['description'] ?? '',
-        notes: j['notes'] ?? '',
+        createdAt: j['created_at'] ?? j['createdAt'] ?? '',
       );
 }
 
-// ─── Vendor (Neighbor Vendor) ──────────────────────────────────────────────────
+// ─── Vendor ────────────────────────────────────────────────────────────────────
 
 class Vendor {
   final String id;
   String name;
-  String nameKh;
   String address;
   String phone;
   String notes;
   final String createdAt;
+  double? latitude;
+  double? longitude;
+  String? googleMapsUrl;
 
   Vendor({
     required this.id,
     required this.name,
-    this.nameKh = '',
     this.address = '',
     this.phone = '',
     this.notes = '',
     required this.createdAt,
+    this.latitude,
+    this.longitude,
+    this.googleMapsUrl,
   });
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
-        'nameKh': nameKh,
         'address': address,
         'phone': phone,
         'notes': notes,
-        'createdAt': createdAt,
+        'created_at': createdAt,
+        'latitude': latitude,
+        'longitude': longitude,
+        'google_maps_url': googleMapsUrl,
       };
 
   factory Vendor.fromJson(Map<String, dynamic> j) => Vendor(
         id: j['id'],
         name: j['name'],
-        nameKh: j['nameKh'] ?? '',
         address: j['address'] ?? '',
         phone: j['phone'] ?? '',
         notes: j['notes'] ?? '',
-        createdAt: j['createdAt'],
+        createdAt: j['created_at'] ?? j['createdAt'] ?? '',
+        latitude: (j['latitude'] as num?)?.toDouble(),
+        longitude: (j['longitude'] as num?)?.toDouble(),
+        googleMapsUrl: j['google_maps_url'],
       );
 }
 
-// ─── Borrow (Borrowed bricks from neighbor vendor) ────────────────────────────
+// ─── Brick Type ────────────────────────────────────────────────────────────────
 
-enum BorrowStatus { owed, paid }
-
-class Borrow {
+class BrickType {
   final String id;
-  String vendorId;
-  String? invoiceId;
-  String date;
-  int quantity;
-  double unitPrice;
-  double totalAmount;
-  BorrowStatus status;
-  String? paymentDate;
-  String notes;
+  String name;
+  String description;
   final String createdAt;
 
-  Borrow({
+  BrickType({
     required this.id,
-    required this.vendorId,
-    this.invoiceId,
-    required this.date,
-    required this.quantity,
-    required this.unitPrice,
-    required this.totalAmount,
-    this.status = BorrowStatus.owed,
-    this.paymentDate,
-    this.notes = '',
-    required this.createdAt,
+    required this.name,
+    this.description = '',
+    this.createdAt = '',
   });
 
   Map<String, dynamic> toJson() => {
         'id': id,
-        'vendorId': vendorId,
-        'invoiceId': invoiceId,
-        'date': date,
-        'quantity': quantity,
-        'unitPrice': unitPrice,
-        'totalAmount': totalAmount,
-        'status': status.name,
-        'paymentDate': paymentDate,
-        'notes': notes,
-        'createdAt': createdAt,
+        'name': name,
+        'description': description,
+        'created_at': createdAt,
       };
 
-  factory Borrow.fromJson(Map<String, dynamic> j) => Borrow(
+  factory BrickType.fromJson(Map<String, dynamic> j) => BrickType(
         id: j['id'],
-        vendorId: j['vendorId'],
-        invoiceId: j['invoiceId'],
-        date: j['date'],
-        quantity: j['quantity'],
-        unitPrice: ((j['unitPrice']) ?? 0).toDouble(),
-        totalAmount: ((j['totalAmount']) ?? 0).toDouble(),
-        status: BorrowStatus.values.firstWhere(
-          (e) => e.name == j['status'],
-          orElse: () => BorrowStatus.owed,
-        ),
-        paymentDate: j['paymentDate'],
-        notes: j['notes'] ?? '',
-        createdAt: j['createdAt'],
+        name: j['name'],
+        description: j['description'] ?? '',
+        createdAt: j['created_at'] ?? '',
+      );
+}
+
+// ─── Inventory ─────────────────────────────────────────────────────────────────
+
+class Inventory {
+  final String id;
+  final String brickTypeId;
+  int quantity;
+  String updatedAt;
+
+  Inventory({
+    required this.id,
+    required this.brickTypeId,
+    this.quantity = 0,
+    this.updatedAt = '',
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'brick_type_id': brickTypeId,
+        'quantity': quantity,
+        'updated_at': updatedAt,
+      };
+
+  factory Inventory.fromJson(Map<String, dynamic> j) => Inventory(
+        id: j['id'],
+        brickTypeId: j['brick_type_id'],
+        quantity: j['quantity'] ?? 0,
+        updatedAt: j['updated_at'] ?? '',
+      );
+}
+
+// ─── Inventory Log ─────────────────────────────────────────────────────────────
+
+class InventoryLog {
+  final String id;
+  final String brickTypeId;
+  final int change;
+  final String source;
+  final String? referenceId;
+  final String createdAt;
+
+  InventoryLog({
+    required this.id,
+    required this.brickTypeId,
+    required this.change,
+    this.source = '',
+    this.referenceId,
+    this.createdAt = '',
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'brick_type_id': brickTypeId,
+        'change': change,
+        'source': source,
+        'reference_id': referenceId,
+        'created_at': createdAt,
+      };
+
+  factory InventoryLog.fromJson(Map<String, dynamic> j) => InventoryLog(
+        id: j['id'],
+        brickTypeId: j['brick_type_id'],
+        change: j['change'] ?? 0,
+        source: j['source'] ?? '',
+        referenceId: j['reference_id'],
+        createdAt: j['created_at'] ?? '',
       );
 }
 
 // ─── Invoice ───────────────────────────────────────────────────────────────────
 
 class InvoiceItem {
-  String description;
-  String descriptionKh;
-  double quantity;
-  String unit;
+  String id;
+  String invoiceId;
+  String? brickTypeId;
+  int quantity;
   double unitPrice;
   double total;
 
   InvoiceItem({
-    required this.description,
-    this.descriptionKh = '',
+    required this.id,
+    required this.invoiceId,
+    this.brickTypeId,
     required this.quantity,
-    this.unit = 'pcs',
     required this.unitPrice,
     required this.total,
   });
 
-  void recalculate() {
-    total = quantity * unitPrice;
-  }
+  void recalculate() => total = quantity * unitPrice;
 
   Map<String, dynamic> toJson() => {
-        'description': description,
-        'descriptionKh': descriptionKh,
+        'id': id,
+        'invoice_id': invoiceId,
+        'brick_type_id': brickTypeId,
         'quantity': quantity,
-        'unit': unit,
-        'unitPrice': unitPrice,
+        'unit_price': unitPrice,
         'total': total,
       };
 
   factory InvoiceItem.fromJson(Map<String, dynamic> j) => InvoiceItem(
-        description: j['description'],
-        descriptionKh: j['descriptionKh'] ?? '',
-        quantity: ((j['quantity']) ?? 0).toDouble(),
-        unit: j['unit'] ?? 'pcs',
-        unitPrice: ((j['unitPrice']) ?? 0).toDouble(),
+        id: j['id'],
+        invoiceId: j['invoice_id'] ?? '',
+        brickTypeId: j['brick_type_id'],
+        quantity: j['quantity'] ?? 0,
+        unitPrice: ((j['unit_price'] ?? j['unitPrice']) ?? 0).toDouble(),
         total: ((j['total']) ?? 0).toDouble(),
       );
 
   InvoiceItem clone() => InvoiceItem(
-        description: description,
-        descriptionKh: descriptionKh,
+        id: id,
+        invoiceId: invoiceId,
+        brickTypeId: brickTypeId,
         quantity: quantity,
-        unit: unit,
         unitPrice: unitPrice,
         total: total,
       );
 }
 
-enum InvoiceStatus { draft, pending, paid }
+enum InvoiceStatus { draft, confirmed, partiallyDelivered, delivered, cancelled }
 
 extension InvoiceStatusLabel on InvoiceStatus {
-  String get label {
+  String get name {
     switch (this) {
-      case InvoiceStatus.draft:
-        return 'Draft';
-      case InvoiceStatus.pending:
-        return 'Pending';
-      case InvoiceStatus.paid:
-        return 'Paid';
+      case InvoiceStatus.draft:              return 'draft';
+      case InvoiceStatus.confirmed:          return 'confirmed';
+      case InvoiceStatus.partiallyDelivered: return 'partially_delivered';
+      case InvoiceStatus.delivered:          return 'delivered';
+      case InvoiceStatus.cancelled:          return 'cancelled';
     }
   }
 
-  String get labelKh {
+  String get label {
     switch (this) {
-      case InvoiceStatus.draft:
-        return 'ព្រាង';
-      case InvoiceStatus.pending:
-        return 'រង់ចាំ';
-      case InvoiceStatus.paid:
-        return 'បានបង់';
+      case InvoiceStatus.draft:              return 'Draft';
+      case InvoiceStatus.confirmed:          return 'Confirmed';
+      case InvoiceStatus.partiallyDelivered: return 'Partial';
+      case InvoiceStatus.delivered:          return 'Delivered';
+      case InvoiceStatus.cancelled:          return 'Cancelled';
+    }
+  }
+
+  static InvoiceStatus fromString(String? s) {
+    switch (s) {
+      case 'confirmed':           return InvoiceStatus.confirmed;
+      case 'partially_delivered': return InvoiceStatus.partiallyDelivered;
+      case 'delivered':           return InvoiceStatus.delivered;
+      case 'cancelled':           return InvoiceStatus.cancelled;
+      default:                    return InvoiceStatus.draft;
+    }
+  }
+}
+
+enum PaymentStatus { unpaid, partial, paid }
+
+extension PaymentStatusLabel on PaymentStatus {
+  String get name {
+    switch (this) {
+      case PaymentStatus.unpaid:  return 'unpaid';
+      case PaymentStatus.partial: return 'partial';
+      case PaymentStatus.paid:    return 'paid';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case PaymentStatus.unpaid:  return 'Unpaid';
+      case PaymentStatus.partial: return 'Partial';
+      case PaymentStatus.paid:    return 'Paid';
+    }
+  }
+
+  static PaymentStatus fromString(String? s) {
+    switch (s) {
+      case 'partial': return PaymentStatus.partial;
+      case 'paid':    return PaymentStatus.paid;
+      default:        return PaymentStatus.unpaid;
     }
   }
 }
@@ -420,84 +453,390 @@ extension InvoiceStatusLabel on InvoiceStatus {
 class Invoice {
   final String id;
   String number;
-  String date;
   String? clientId;
-  String? carId;
-  List<String> workerIds;
-  List<InvoiceItem> items;
-  double subtotal;
-  double total;
-  String? borrowId;
-  String notes;
+  String date;
   InvoiceStatus status;
+  PaymentStatus paymentStatus;
+  double subtotal;
+  double tax;
+  double total;
+  String notes;
   final String createdAt;
-  String? updatedAt;
+  List<InvoiceItem> items; // embedded locally, synced to invoice_items table
 
   Invoice({
     required this.id,
     required this.number,
-    required this.date,
     this.clientId,
-    this.carId,
-    List<String>? workerIds,
-    List<InvoiceItem>? items,
-    this.subtotal = 0,
-    this.total = 0,
-    this.borrowId,
-    this.notes = '',
+    required this.date,
     this.status = InvoiceStatus.draft,
+    this.paymentStatus = PaymentStatus.unpaid,
+    this.subtotal = 0,
+    this.tax = 0,
+    this.total = 0,
+    this.notes = '',
     required this.createdAt,
-    this.updatedAt,
-  })  : workerIds = workerIds ?? [],
-        items = items ?? [];
+    List<InvoiceItem>? items,
+  }) : items = items ?? [];
 
   void recalculate() {
-    for (final item in items) {
-      item.recalculate();
-    }
-    subtotal = items.fold(0, (sum, item) => sum + item.total);
-    total = subtotal;
+    for (final item in items) item.recalculate();
+    subtotal = items.fold(0, (s, i) => s + i.total);
+    total = subtotal + tax;
   }
 
-  int get totalBricks =>
-      items.fold(0, (sum, item) => sum + item.quantity.toInt());
+  int get totalBricks => items.fold(0, (s, i) => s + i.quantity);
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'number': number,
+        'client_id': clientId,
         'date': date,
-        'clientId': clientId,
-        'carId': carId,
-        'workerIds': workerIds,
-        'items': items.map((e) => e.toJson()).toList(),
-        'subtotal': subtotal,
-        'total': total,
-        'borrowId': borrowId,
-        'notes': notes,
         'status': status.name,
-        'createdAt': createdAt,
-        'updatedAt': updatedAt,
+        'payment_status': paymentStatus.name,
+        'subtotal': subtotal,
+        'tax': tax,
+        'total': total,
+        'notes': notes,
+        'created_at': createdAt,
+        'items': items.map((e) => e.toJson()).toList(),
       };
 
-  factory Invoice.fromJson(Map<String, dynamic> j) => Invoice(
+  factory Invoice.fromJson(Map<String, dynamic> j) {
+    final rawItems = j['invoice_items'] ?? j['items'];
+    return Invoice(
+      id: j['id'],
+      number: j['number'],
+      clientId: j['client_id'] ?? j['clientId'],
+      date: j['date'] ?? '',
+      status: InvoiceStatusLabel.fromString(j['status']),
+      paymentStatus: PaymentStatusLabel.fromString(j['payment_status'] ?? j['paymentStatus']),
+      subtotal: ((j['subtotal']) ?? 0).toDouble(),
+      tax: ((j['tax']) ?? 0).toDouble(),
+      total: ((j['total']) ?? 0).toDouble(),
+      notes: j['notes'] ?? '',
+      createdAt: j['created_at'] ?? j['createdAt'] ?? '',
+      items: (rawItems as List<dynamic>? ?? [])
+          .map((e) => InvoiceItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+// ─── Delivery ──────────────────────────────────────────────────────────────────
+
+enum DeliveryStatus { planned, loading, onRoute, delivered, cancelled }
+
+extension DeliveryStatusLabel on DeliveryStatus {
+  String get name {
+    switch (this) {
+      case DeliveryStatus.planned:   return 'planned';
+      case DeliveryStatus.loading:   return 'loading';
+      case DeliveryStatus.onRoute:   return 'on_route';
+      case DeliveryStatus.delivered: return 'delivered';
+      case DeliveryStatus.cancelled: return 'cancelled';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case DeliveryStatus.planned:   return 'Planned';
+      case DeliveryStatus.loading:   return 'Loading';
+      case DeliveryStatus.onRoute:   return 'On Route';
+      case DeliveryStatus.delivered: return 'Delivered';
+      case DeliveryStatus.cancelled: return 'Cancelled';
+    }
+  }
+
+  static DeliveryStatus fromString(String? s) {
+    switch (s) {
+      case 'loading':   return DeliveryStatus.loading;
+      case 'on_route':  return DeliveryStatus.onRoute;
+      case 'delivered': return DeliveryStatus.delivered;
+      case 'cancelled': return DeliveryStatus.cancelled;
+      default:          return DeliveryStatus.planned;
+    }
+  }
+}
+
+class DeliveryItem {
+  final String id;
+  String deliveryId;
+  String invoiceId;
+  int quantity;
+  int deliveredQuantity;
+
+  DeliveryItem({
+    required this.id,
+    required this.deliveryId,
+    required this.invoiceId,
+    required this.quantity,
+    this.deliveredQuantity = 0,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'delivery_id': deliveryId,
+        'invoice_id': invoiceId,
+        'quantity': quantity,
+        'delivered_quantity': deliveredQuantity,
+      };
+
+  factory DeliveryItem.fromJson(Map<String, dynamic> j) => DeliveryItem(
         id: j['id'],
-        number: j['number'],
-        date: j['date'],
-        clientId: j['clientId'],
-        carId: j['carId'],
-        workerIds: List<String>.from(j['workerIds'] ?? []),
-        items: (j['items'] as List<dynamic>? ?? [])
-            .map((e) => InvoiceItem.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        subtotal: ((j['subtotal']) ?? 0).toDouble(),
+        deliveryId: j['delivery_id'] ?? '',
+        invoiceId: j['invoice_id'],
+        quantity: j['quantity'] ?? 0,
+        deliveredQuantity: j['delivered_quantity'] ?? 0,
+      );
+}
+
+class Delivery {
+  final String id;
+  String carId;
+  String? driverId;
+  String? deliveryDate;
+  String notes;
+  double? latitude;
+  double? longitude;
+  DeliveryStatus status;
+  String? startedAt;
+  String? completedAt;
+  List<DeliveryItem> items;
+
+  Delivery({
+    required this.id,
+    required this.carId,
+    this.driverId,
+    this.deliveryDate,
+    this.notes = '',
+    this.latitude,
+    this.longitude,
+    this.status = DeliveryStatus.planned,
+    this.startedAt,
+    this.completedAt,
+    List<DeliveryItem>? items,
+  }) : items = items ?? [];
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'car_id': carId,
+        'driver_id': driverId,
+        'delivery_date': deliveryDate,
+        'notes': notes,
+        'latitude': latitude,
+        'longitude': longitude,
+        'status': status.name,
+        'started_at': startedAt,
+        'completed_at': completedAt,
+        'items': items.map((e) => e.toJson()).toList(),
+      };
+
+  factory Delivery.fromJson(Map<String, dynamic> j) {
+    final rawItems = j['delivery_items'] ?? j['items'];
+    return Delivery(
+      id: j['id'],
+      carId: j['car_id'],
+      driverId: j['driver_id'],
+      deliveryDate: j['delivery_date'],
+      notes: j['notes'] ?? '',
+      latitude: (j['latitude'] as num?)?.toDouble(),
+      longitude: (j['longitude'] as num?)?.toDouble(),
+      status: DeliveryStatusLabel.fromString(j['status']),
+      startedAt: j['started_at'],
+      completedAt: j['completed_at'],
+      items: (rawItems as List<dynamic>? ?? [])
+          .map((e) => DeliveryItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+// ─── Delivery Proof ────────────────────────────────────────────────────────────
+
+class DeliveryProof {
+  final String id;
+  final String deliveryId;
+  final String? invoiceId;
+  final String imageUrl;
+  final String type; // 'freight' | 'invoice'
+  final String? uploadedBy;
+  final String createdAt;
+
+  DeliveryProof({
+    required this.id,
+    required this.deliveryId,
+    this.invoiceId,
+    required this.imageUrl,
+    required this.type,
+    this.uploadedBy,
+    this.createdAt = '',
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'delivery_id': deliveryId,
+        'invoice_id': invoiceId,
+        'image_url': imageUrl,
+        'type': type,
+        'uploaded_by': uploadedBy,
+        'created_at': createdAt,
+      };
+
+  factory DeliveryProof.fromJson(Map<String, dynamic> j) => DeliveryProof(
+        id: j['id'],
+        deliveryId: j['delivery_id'],
+        invoiceId: j['invoice_id'],
+        imageUrl: j['image_url'],
+        type: j['type'] ?? 'freight',
+        uploadedBy: j['uploaded_by'],
+        createdAt: j['created_at'] ?? '',
+      );
+}
+
+// ─── Borrow Transaction ────────────────────────────────────────────────────────
+
+enum BorrowType { borrowIn, borrowOut, lendOut, lendReturn }
+
+extension BorrowTypeLabel on BorrowType {
+  String get name {
+    switch (this) {
+      case BorrowType.borrowIn:   return 'borrow_in';
+      case BorrowType.borrowOut:  return 'borrow_out';
+      case BorrowType.lendOut:    return 'lend_out';
+      case BorrowType.lendReturn: return 'lend_return';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case BorrowType.borrowIn:   return 'We Borrowed';
+      case BorrowType.borrowOut:  return 'We Returned';
+      case BorrowType.lendOut:    return 'We Lent';
+      case BorrowType.lendReturn: return 'They Returned';
+    }
+  }
+
+  static BorrowType fromString(String? s) {
+    switch (s) {
+      case 'borrow_out':  return BorrowType.borrowOut;
+      case 'lend_out':    return BorrowType.lendOut;
+      case 'lend_return': return BorrowType.lendReturn;
+      default:            return BorrowType.borrowIn;
+    }
+  }
+}
+
+class BorrowTransaction {
+  final String id;
+  String vendorId;
+  String? brickTypeId;
+  int quantity;
+  double unitPrice;
+  double total;
+  BorrowType type;
+  String? relatedInvoiceId;
+  final String createdAt;
+
+  BorrowTransaction({
+    required this.id,
+    required this.vendorId,
+    this.brickTypeId,
+    required this.quantity,
+    this.unitPrice = 0,
+    this.total = 0,
+    this.type = BorrowType.borrowIn,
+    this.relatedInvoiceId,
+    required this.createdAt,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'vendor_id': vendorId,
+        'brick_type_id': brickTypeId,
+        'quantity': quantity,
+        'unit_price': unitPrice,
+        'total': total,
+        'type': type.name,
+        'related_invoice_id': relatedInvoiceId,
+        'created_at': createdAt,
+      };
+
+  factory BorrowTransaction.fromJson(Map<String, dynamic> j) => BorrowTransaction(
+        id: j['id'],
+        vendorId: j['vendor_id'] ?? j['vendorId'] ?? '',
+        brickTypeId: j['brick_type_id'] ?? j['brickTypeId'],
+        quantity: j['quantity'] ?? 0,
+        unitPrice: ((j['unit_price'] ?? j['unitPrice']) ?? 0).toDouble(),
         total: ((j['total']) ?? 0).toDouble(),
-        borrowId: j['borrowId'],
+        type: BorrowTypeLabel.fromString(j['type']),
+        relatedInvoiceId: j['related_invoice_id'] ?? j['relatedInvoiceId'],
+        createdAt: j['created_at'] ?? j['createdAt'] ?? '',
+      );
+}
+
+// ─── Worker Transaction ────────────────────────────────────────────────────────
+
+enum WorkerTransactionType { salary, borrow, repayment }
+
+extension WorkerTransactionTypeLabel on WorkerTransactionType {
+  String get name {
+    switch (this) {
+      case WorkerTransactionType.salary:    return 'salary';
+      case WorkerTransactionType.borrow:    return 'borrow';
+      case WorkerTransactionType.repayment: return 'repayment';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case WorkerTransactionType.salary:    return 'Salary';
+      case WorkerTransactionType.borrow:    return 'Borrow';
+      case WorkerTransactionType.repayment: return 'Repayment';
+    }
+  }
+
+  static WorkerTransactionType fromString(String? s) {
+    switch (s) {
+      case 'borrow':    return WorkerTransactionType.borrow;
+      case 'repayment': return WorkerTransactionType.repayment;
+      default:          return WorkerTransactionType.salary;
+    }
+  }
+}
+
+class WorkerTransaction {
+  final String id;
+  final String workerId;
+  WorkerTransactionType type;
+  double amount;
+  String notes;
+  final String createdAt;
+
+  WorkerTransaction({
+    required this.id,
+    required this.workerId,
+    required this.type,
+    required this.amount,
+    this.notes = '',
+    required this.createdAt,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'worker_id': workerId,
+        'type': type.name,
+        'amount': amount,
+        'notes': notes,
+        'created_at': createdAt,
+      };
+
+  factory WorkerTransaction.fromJson(Map<String, dynamic> j) => WorkerTransaction(
+        id: j['id'],
+        workerId: j['worker_id'] ?? j['workerId'] ?? '',
+        type: WorkerTransactionTypeLabel.fromString(j['type']),
+        amount: ((j['amount']) ?? 0).toDouble(),
         notes: j['notes'] ?? '',
-        status: InvoiceStatus.values.firstWhere(
-          (e) => e.name == j['status'],
-          orElse: () => InvoiceStatus.draft,
-        ),
-        createdAt: j['createdAt'],
-        updatedAt: j['updatedAt'],
+        createdAt: j['created_at'] ?? j['createdAt'] ?? '',
       );
 }

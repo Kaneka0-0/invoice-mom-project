@@ -16,9 +16,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameCtrl;
-  late TextEditingController _nameKhCtrl;
   late TextEditingController _addressCtrl;
-  late TextEditingController _addressKhCtrl;
   late TextEditingController _phoneCtrl;
   late TextEditingController _emailCtrl;
   late TextEditingController _priceCtrl;
@@ -33,9 +31,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!_init) {
       final s = context.read<AppProvider>().settings;
       _nameCtrl = TextEditingController(text: s.companyName);
-      _nameKhCtrl = TextEditingController(text: s.companyNameKh);
       _addressCtrl = TextEditingController(text: s.address);
-      _addressKhCtrl = TextEditingController(text: s.addressKh);
       _phoneCtrl = TextEditingController(text: s.phone);
       _emailCtrl = TextEditingController(text: s.email);
       _priceCtrl =
@@ -50,9 +46,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _nameKhCtrl.dispose();
     _addressCtrl.dispose();
-    _addressKhCtrl.dispose();
     _phoneCtrl.dispose();
     _emailCtrl.dispose();
     _priceCtrl.dispose();
@@ -134,27 +128,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     TextFormField(
                       controller: _nameCtrl,
                       decoration:
-                          InputDecoration(labelText: '${s.companyName} (EN) *'),
+                          InputDecoration(labelText: '${s.companyName} *'),
                       validator: (v) =>
                           (v == null || v.isEmpty) ? 'Required' : null,
                     ),
                     const SizedBox(height: 10),
                     TextFormField(
-                      controller: _nameKhCtrl,
-                      decoration: InputDecoration(
-                          labelText: s.companyNameKh),
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
                       controller: _addressCtrl,
                       decoration: InputDecoration(labelText: s.address),
-                      maxLines: 2,
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _addressKhCtrl,
-                      decoration:
-                          InputDecoration(labelText: s.addressKh),
                       maxLines: 2,
                     ),
                     const SizedBox(height: 10),
@@ -286,9 +267,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final updated = AppSettings(
         companyName: _nameCtrl.text.trim(),
-        companyNameKh: _nameKhCtrl.text.trim(),
         address: _addressCtrl.text.trim(),
-        addressKh: _addressKhCtrl.text.trim(),
         phone: _phoneCtrl.text.trim(),
         email: _emailCtrl.text.trim(),
         brickPriceDefault:

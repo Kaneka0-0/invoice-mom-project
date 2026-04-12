@@ -90,21 +90,27 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                           ),
                           const SizedBox(width: 6),
                           _FilterChip(
-                            label: s.draft,
+                            label: 'Draft',
                             selected: _statusFilter == 'draft',
                             onTap: () => setState(() => _statusFilter = 'draft'),
                           ),
                           const SizedBox(width: 6),
                           _FilterChip(
-                            label: s.pending,
-                            selected: _statusFilter == 'pending',
-                            onTap: () => setState(() => _statusFilter = 'pending'),
+                            label: 'Confirmed',
+                            selected: _statusFilter == 'confirmed',
+                            onTap: () => setState(() => _statusFilter = 'confirmed'),
                           ),
                           const SizedBox(width: 6),
                           _FilterChip(
-                            label: s.paid,
-                            selected: _statusFilter == 'paid',
-                            onTap: () => setState(() => _statusFilter = 'paid'),
+                            label: 'Delivered',
+                            selected: _statusFilter == 'delivered',
+                            onTap: () => setState(() => _statusFilter = 'delivered'),
+                          ),
+                          const SizedBox(width: 6),
+                          _FilterChip(
+                            label: 'Cancelled',
+                            selected: _statusFilter == 'cancelled',
+                            onTap: () => setState(() => _statusFilter = 'cancelled'),
                           ),
                           const SizedBox(width: 12),
                           // Month picker
@@ -134,34 +140,13 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                     ),
                     const SizedBox(height: 8),
 
-                    // Client filter row
+                    // Client filter dropdown (searchable)
                     if (provider.clients.isNotEmpty)
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            const Text('Client:',
-                                style: TextStyle(
-                                    fontSize: 12, color: AppColors.muted)),
-                            const SizedBox(width: 8),
-                            _FilterChip(
-                              label: 'All',
-                              selected: _clientFilter == null,
-                              onTap: () => setState(() => _clientFilter = null),
-                            ),
-                            ...provider.clients.map((c) {
-                              return Padding(
-                                padding: const EdgeInsets.only(left: 6),
-                                child: _FilterChip(
-                                  label: c.name,
-                                  selected: _clientFilter == c.id,
-                                  onTap: () =>
-                                      setState(() => _clientFilter = c.id),
-                                ),
-                              );
-                            }),
-                          ],
-                        ),
+                      _ClientFilterDropdown(
+                        clients: provider.clients,
+                        selectedId: _clientFilter,
+                        onChanged: (id) =>
+                            setState(() => _clientFilter = id),
                       ),
                     const SizedBox(height: 10),
                   ],
@@ -340,7 +325,7 @@ class _ExportSheet extends StatelessWidget {
     final sym = provider.settings.currencySymbol;
     final fmt = NumberFormat('#,##0.00');
     final totalRevenue = filtered.fold<double>(0, (s, i) => s + i.total);
-    final paidCount = filtered.where((i) => i.status == InvoiceStatus.paid).length;
+    final paidCount = filtered.where((i) => i.paymentStatus == PaymentStatus.paid).length;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
@@ -569,9 +554,7 @@ class _InvoiceCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   StatusBadge(
                     status: invoice.status.name,
-                    label: isKh
-                        ? invoice.status.labelKh
-                        : invoice.status.label,
+                    label: invoice.status.label,
                   ),
                 ],
               ),
@@ -585,6 +568,284 @@ class _InvoiceCard extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Searchable client filter dropdown ─────────────────────────────────────────
+class _ClientFilterDropdown extends StatefulWidget {
+  final List<Client> clients;
+  final String? selectedId;
+  final ValueChanged<String?> onChanged;
+
+  const _ClientFilterDropdown({
+    required this.clients,
+    required this.selectedId,
+    required this.onChanged,
+  });
+
+  @override
+  State<_ClientFilterDropdown> createState() => _ClientFilterDropdownState();
+}
+
+class _ClientFilterDropdownState extends State<_ClientFilterDropdown> {
+  final _searchCtrl = TextEditingController();
+  final _layerLink  = LayerLink();
+  OverlayEntry? _overlay;
+  bool _open = false;
+
+  String get _selectedName {
+    if (widget.selectedId == null) return 'All Clients';
+    return widget.clients
+        .firstWhere((c) => c.id == widget.selectedId,
+            orElse: () => Client(id: '', name: 'All Clients', createdAt: ''))
+        .name;
+  }
+
+  void _openDropdown(BuildContext context) {
+    if (_open) {
+      _closeDropdown();
+      return;
+    }
+    _open = true;
+    _searchCtrl.clear();
+    _overlay = _buildOverlay(context);
+    Overlay.of(context).insert(_overlay!);
+  }
+
+  void _closeDropdown() {
+    _overlay?.remove();
+    _overlay = null;
+    _open = false;
+    _searchCtrl.clear();
+  }
+
+  OverlayEntry _buildOverlay(BuildContext context) {
+    final box = context.findRenderObject() as RenderBox;
+    final size = box.size;
+
+    return OverlayEntry(
+      builder: (_) => GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: _closeDropdown,
+        child: Stack(
+          children: [
+            CompositedTransformFollower(
+              link: _layerLink,
+              showWhenUnlinked: false,
+              offset: Offset(0, size.height + 4),
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(10),
+                color: AppColors.surface,
+                child: SizedBox(
+                  width: size.width,
+                  child: _DropdownContent(
+                    clients: widget.clients,
+                    searchCtrl: _searchCtrl,
+                    selectedId: widget.selectedId,
+                    onSelect: (id) {
+                      widget.onChanged(id);
+                      _closeDropdown();
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _closeDropdown();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasFilter = widget.selectedId != null;
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: GestureDetector(
+        onTap: () => _openDropdown(context),
+        child: Container(
+          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: hasFilter ? AppColors.pale : AppColors.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: hasFilter ? AppColors.forest : AppColors.border,
+              width: hasFilter ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.person_outline,
+                  size: 15,
+                  color: hasFilter ? AppColors.forest : AppColors.muted),
+              const SizedBox(width: 6),
+              Text(
+                _selectedName,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: hasFilter ? AppColors.forest : AppColors.slate,
+                  fontWeight:
+                      hasFilter ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+              const SizedBox(width: 4),
+              if (hasFilter)
+                GestureDetector(
+                  onTap: () {
+                    widget.onChanged(null);
+                    _closeDropdown();
+                  },
+                  child: const Icon(Icons.close,
+                      size: 14, color: AppColors.forest),
+                )
+              else
+                const Icon(Icons.expand_more,
+                    size: 16, color: AppColors.muted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DropdownContent extends StatefulWidget {
+  final List<Client> clients;
+  final TextEditingController searchCtrl;
+  final String? selectedId;
+  final ValueChanged<String?> onSelect;
+
+  const _DropdownContent({
+    required this.clients,
+    required this.searchCtrl,
+    required this.selectedId,
+    required this.onSelect,
+  });
+
+  @override
+  State<_DropdownContent> createState() => _DropdownContentState();
+}
+
+class _DropdownContentState extends State<_DropdownContent> {
+  @override
+  void initState() {
+    super.initState();
+    widget.searchCtrl.addListener(() => setState(() {}));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final q = widget.searchCtrl.text.toLowerCase();
+    final filtered = q.isEmpty
+        ? widget.clients
+        : widget.clients
+            .where((c) => c.name.toLowerCase().contains(q))
+            .toList();
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 280),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Search box
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+            child: TextField(
+              controller: widget.searchCtrl,
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText: 'Search clients...',
+                prefixIcon: Icon(Icons.search, size: 18),
+                isDense: true,
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              ),
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+          const Divider(height: 1),
+          // "All" option
+          _DropdownOption(
+            label: 'All Clients',
+            selected: widget.selectedId == null,
+            onTap: () => widget.onSelect(null),
+          ),
+          // Client list
+          Flexible(
+            child: ListView.builder(
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              itemCount: filtered.length,
+              itemBuilder: (_, i) {
+                final c = filtered[i];
+                return _DropdownOption(
+                  label: c.name,
+                  selected: widget.selectedId == c.id,
+                  onTap: () => widget.onSelect(c.id),
+                );
+              },
+            ),
+          ),
+          if (filtered.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(14),
+              child: Text('No clients found',
+                  style:
+                      TextStyle(fontSize: 12, color: AppColors.muted)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DropdownOption extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _DropdownOption({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        color: selected ? AppColors.pale : null,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: selected ? AppColors.forest : AppColors.ink,
+                  fontWeight:
+                      selected ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+            ),
+            if (selected)
+              const Icon(Icons.check, size: 16, color: AppColors.forest),
+          ],
         ),
       ),
     );

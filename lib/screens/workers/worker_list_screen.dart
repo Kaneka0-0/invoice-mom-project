@@ -60,13 +60,8 @@ class WorkerListScreen extends StatelessWidget {
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (w.nameKh.isNotEmpty)
-                              Text(w.nameKh,
-                                  style: const TextStyle(fontSize: 12)),
                             Text(
-                              provider.isKh
-                                  ? w.role.labelKh
-                                  : w.role.label,
+                              w.role.label,
                               style: const TextStyle(
                                   fontSize: 12,
                                   color: AppColors.muted),

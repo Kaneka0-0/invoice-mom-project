@@ -28,25 +28,19 @@ class InvoiceViewScreen extends StatelessWidget {
           );
         }
 
-        final client = provider.store.findClient(invoice.clientId);
-        final car = provider.store.findCar(invoice.carId);
-        final workers = invoice.workerIds
-            .map((wid) => provider.store.findWorker(wid))
-            .whereType<Worker>()
-            .toList();
-        final borrow = provider.store.findBorrow(invoice.borrowId);
-        final borrowVendor =
-            borrow != null ? provider.store.findVendor(borrow.vendorId) : null;
+        final client = provider.store.findClient(invoice.clientId ?? '');
 
-        final fmt = NumberFormat('#,##0.00');
-        final intFmt = NumberFormat('#,###');
+        final fmt     = NumberFormat('#,##0.00');
+        final intFmt  = NumberFormat('#,###');
         final dateFmt = DateFormat('dd/MM/yyyy');
-        final sym = provider.settings.currencySymbol;
+        final sym     = provider.settings.currencySymbol;
 
         String dateStr = invoice.date;
         try {
           dateStr = dateFmt.format(DateTime.parse(invoice.date));
         } catch (_) {}
+
+        final isPaid = invoice.paymentStatus == PaymentStatus.paid;
 
         return Scaffold(
           appBar: AppBar(
@@ -56,7 +50,7 @@ class InvoiceViewScreen extends StatelessWidget {
               onPressed: () => context.go('/invoices'),
             ),
             actions: [
-              if (invoice.status != InvoiceStatus.paid)
+              if (!isPaid)
                 IconButton(
                   icon: const Icon(Icons.check_circle_outline),
                   tooltip: s.markPaid,
@@ -74,10 +68,7 @@ class InvoiceViewScreen extends StatelessWidget {
                   context,
                   invoice: invoice,
                   client: client,
-                  car: car,
-                  workers: workers,
-                  borrow: borrow,
-                  borrowVendor: borrowVendor,
+                  brickTypes: provider.brickTypes,
                   settings: provider.settings,
                 ),
               ),
@@ -95,76 +86,26 @@ class InvoiceViewScreen extends StatelessWidget {
                   dateStr: dateStr,
                   sym: sym,
                   fmt: fmt,
-                  isKh: provider.isKh,
                 ),
                 const SizedBox(height: 12),
 
-                // ── Client + Delivery ─────────────────────────────────
-                LayoutBuilder(builder: (ctx, constraints) {
-                  final wide = constraints.maxWidth > 500;
-                  final clientCard = _InfoCard(
+                // ── Client info ───────────────────────────────────────
+                if (client != null)
+                  _InfoCard(
                     title: '${s.billTo}  •  ជូនដល់',
                     children: [
-                      if (client != null) ...[
-                        InfoRow(
-                          label: s.name,
-                          value: client.name,
-                          valueStyle: const TextStyle(
-                              fontWeight: FontWeight.w600),
-                        ),
-                        if (client.nameKh.isNotEmpty)
-                          InfoRow(label: '', value: client.nameKh),
-                        if (client.address.isNotEmpty)
-                          InfoRow(
-                              label: s.address, value: client.address),
-                        if (client.phone.isNotEmpty)
-                          InfoRow(label: s.phone, value: client.phone),
-                      ] else
-                        const Text('—',
-                            style: TextStyle(color: AppColors.muted)),
-                    ],
-                  );
-                  final deliveryCard = _InfoCard(
-                    title: '${s.delivery}  •  ការដឹក',
-                    children: [
-                      if (car != null) ...[
-                        InfoRow(
-                            label: s.plateNumber, value: car.plateNumber),
-                        InfoRow(
-                          label: s.capacity,
-                          value:
-                              '${intFmt.format(car.capacity)} bricks',
-                        ),
-                      ],
-                      if (workers.isNotEmpty)
-                        InfoRow(
-                          label: s.workers,
-                          value: workers.map((w) => w.name).join(', '),
-                        ),
+                      InfoRow(
+                        label: s.name,
+                        value: client.name,
+                        valueStyle: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      if (client.address.isNotEmpty)
+                        InfoRow(label: s.address, value: client.address),
+                      if (client.phone.isNotEmpty)
+                        InfoRow(label: s.phone, value: client.phone),
                       InfoRow(label: s.date, value: dateStr),
                     ],
-                  );
-
-                  if (wide) {
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: clientCard),
-                        const SizedBox(width: 12),
-                        Expanded(child: deliveryCard),
-                      ],
-                    );
-                  }
-                  return Column(children: [
-                    clientCard,
-                    const SizedBox(height: 12),
-                    deliveryCard,
-                  ]);
-                }),
-                const SizedBox(height: 12),
-
-                // ── Car capacity bar ──────────────────────────────────
-                if (car != null) _CarCapacityBar(invoice: invoice, car: car),
+                  ),
                 const SizedBox(height: 12),
 
                 // ── Items ─────────────────────────────────────────────
@@ -188,7 +129,15 @@ class InvoiceViewScreen extends StatelessWidget {
                         _tableHeader(s),
                         const Divider(height: 4),
                         ...invoice.items.asMap().entries.map((e) =>
-                            _tableRow(e.key, e.value, sym, fmt, intFmt)),
+                            _tableRow(
+                              e.key,
+                              e.value,
+                              sym,
+                              fmt,
+                              intFmt,
+                              provider.store.findBrickType(
+                                  e.value.brickTypeId ?? ''),
+                            )),
                         const Divider(height: 16),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
@@ -199,6 +148,12 @@ class InvoiceViewScreen extends StatelessWidget {
                                 Text(
                                     '${s.subtotal}: $sym${fmt.format(invoice.subtotal)}',
                                     style: const TextStyle(fontSize: 13)),
+                                if (invoice.tax > 0) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                      'Tax: $sym${fmt.format(invoice.tax)}',
+                                      style: const TextStyle(fontSize: 13)),
+                                ],
                                 const SizedBox(height: 4),
                                 Text(
                                   '${s.total}: $sym${fmt.format(invoice.total)}',
@@ -216,12 +171,6 @@ class InvoiceViewScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
-
-                // ── Borrowed bricks ───────────────────────────────────
-                if (borrow != null && borrowVendor != null)
-                  _BorrowCard(
-                      borrow: borrow, vendor: borrowVendor, sym: sym, fmt: fmt, s: s),
                 const SizedBox(height: 12),
 
                 // ── Notes ─────────────────────────────────────────────
@@ -254,16 +203,13 @@ class InvoiceViewScreen extends StatelessWidget {
                         context,
                         invoice: invoice,
                         client: client,
-                        car: car,
-                        workers: workers,
-                        borrow: borrow,
-                        borrowVendor: borrowVendor,
+                        brickTypes: provider.brickTypes,
                         settings: provider.settings,
                       ),
                       icon: const Icon(Icons.picture_as_pdf),
                       label: Text(s.print),
                     ),
-                    if (invoice.status != InvoiceStatus.paid)
+                    if (!isPaid)
                       OutlinedButton.icon(
                         onPressed: () => _markPaid(context, provider),
                         icon: const Icon(Icons.check_circle_outline),
@@ -299,7 +245,7 @@ class InvoiceViewScreen extends StatelessWidget {
         const SizedBox(width: 24),
         Expanded(
             flex: 3,
-            child: Text(s.description,
+            child: Text('Brick Type',
                 style: const TextStyle(
                     fontSize: 11, color: AppColors.muted))),
         SizedBox(
@@ -325,7 +271,7 @@ class InvoiceViewScreen extends StatelessWidget {
   }
 
   Widget _tableRow(int idx, InvoiceItem item, String sym,
-      NumberFormat fmt, NumberFormat intFmt) {
+      NumberFormat fmt, NumberFormat intFmt, BrickType? brickType) {
     return Container(
       color: idx.isEven ? AppColors.mint : AppColors.surface,
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
@@ -343,19 +289,9 @@ class InvoiceViewScreen extends StatelessWidget {
           ),
           Expanded(
             flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item.description,
-                    style: const TextStyle(fontSize: 12)),
-                if (item.descriptionKh.isNotEmpty)
-                  Text(item.descriptionKh,
-                      style: const TextStyle(
-                          fontSize: 11, color: AppColors.muted)),
-                Text(item.unit,
-                    style: const TextStyle(
-                        fontSize: 10, color: AppColors.muted)),
-              ],
+            child: Text(
+              brickType?.name ?? 'Brick',
+              style: const TextStyle(fontSize: 12),
             ),
           ),
           SizedBox(
@@ -392,19 +328,13 @@ class InvoiceViewScreen extends StatelessWidget {
     BuildContext context, {
     required Invoice invoice,
     required Client? client,
-    required Car? car,
-    required List<Worker> workers,
-    required Borrow? borrow,
-    required Vendor? borrowVendor,
+    required List<BrickType> brickTypes,
     required AppSettings settings,
   }) async {
     final bytes = await PdfService.generateInvoice(
       invoice: invoice,
       client: client,
-      car: car,
-      workers: workers,
-      borrowVendor: borrowVendor,
-      borrow: borrow,
+      brickTypes: brickTypes,
       settings: settings,
     );
     if (context.mounted) {
@@ -425,10 +355,9 @@ class InvoiceViewScreen extends StatelessWidget {
   Future<void> _delete(
       BuildContext context, AppProvider provider) async {
     final ok = await showDeleteDialog(context, itemName: 'Invoice');
-    if (ok && context.mounted) {
-      await provider.deleteInvoice(id);
-      context.go('/invoices');
-    }
+    if (!ok) return;
+    await provider.deleteInvoice(id);
+    if (context.mounted) context.go('/invoices');
   }
 }
 
@@ -439,14 +368,12 @@ class _HeaderCard extends StatelessWidget {
   final String dateStr;
   final String sym;
   final NumberFormat fmt;
-  final bool isKh;
 
   const _HeaderCard({
     required this.invoice,
     required this.dateStr,
     required this.sym,
     required this.fmt,
-    required this.isKh,
   });
 
   @override
@@ -493,11 +420,15 @@ class _HeaderCard extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              const SizedBox(height: 4),
               StatusBadge(
                 status: invoice.status.name,
-                label: isKh
-                    ? invoice.status.labelKh
-                    : invoice.status.label,
+                label: invoice.status.label,
+              ),
+              const SizedBox(height: 2),
+              StatusBadge(
+                status: invoice.paymentStatus.name,
+                label: invoice.paymentStatus.label,
               ),
             ],
           ),
@@ -539,125 +470,6 @@ class _InfoCard extends StatelessWidget {
             ...children,
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _CarCapacityBar extends StatelessWidget {
-  final Invoice invoice;
-  final Car car;
-
-  const _CarCapacityBar({required this.invoice, required this.car});
-
-  @override
-  Widget build(BuildContext context) {
-    final used = invoice.totalBricks;
-    final ratio = (used / car.capacity).clamp(0.0, 1.0);
-    final pct = (ratio * 100).round();
-    final fmt = NumberFormat('#,###');
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.local_shipping,
-                    color: AppColors.forest, size: 18),
-                const SizedBox(width: 8),
-                const Text(
-                  'Car Load  •  ការផ្ទុករថយន្ត',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const Spacer(),
-                Text(
-                  '${fmt.format(used)} / ${fmt.format(car.capacity)} bricks ($pct%)',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: ratio > 0.9 ? AppColors.warning : AppColors.slate,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: ratio,
-                backgroundColor: AppColors.border,
-                color: ratio > 0.9 ? AppColors.warning : AppColors.forest,
-                minHeight: 12,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BorrowCard extends StatelessWidget {
-  final Borrow borrow;
-  final Vendor vendor;
-  final String sym;
-  final NumberFormat fmt;
-  final dynamic s;
-
-  const _BorrowCard({
-    required this.borrow,
-    required this.vendor,
-    required this.sym,
-    required this.fmt,
-    required this.s,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
-        border: Border.all(color: const Color(0xFFFCD34D)),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.warning_amber_outlined,
-                  color: AppColors.warning, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                '${s.borrowedBricks}  •  ឥដ្ឋខ្ចី',
-                style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.warning),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          InfoRow(label: s.vendor, value: vendor.name),
-          InfoRow(
-            label: s.quantity,
-            value: '${NumberFormat('#,###').format(borrow.quantity)} bricks',
-          ),
-          InfoRow(
-            label: s.amountOwed,
-            value: '$sym${fmt.format(borrow.totalAmount)}',
-            valueStyle: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: AppColors.warning),
-          ),
-          InfoRow(
-            label: s.status,
-            value: borrow.status == BorrowStatus.paid ? 'Paid' : 'Owed',
-          ),
-        ],
       ),
     );
   }

@@ -66,9 +66,6 @@ class VendorListScreen extends StatelessWidget {
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (v.nameKh.isNotEmpty)
-                              Text(v.nameKh,
-                                  style: const TextStyle(fontSize: 12)),
                             if (v.phone.isNotEmpty)
                               Text(v.phone,
                                   style: const TextStyle(

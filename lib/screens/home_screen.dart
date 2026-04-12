@@ -8,8 +8,15 @@ import '../models/models.dart';
 import '../theme.dart';
 import '../widgets/common_widgets.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _recentTab = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -30,13 +37,15 @@ class HomeScreen extends StatelessWidget {
 
         return Scaffold(
           backgroundColor: AppColors.canvas,
-          body: CustomScrollView(
+          body: RefreshIndicator(
+            color: AppColors.forest,
+            onRefresh: provider.reload,
+            child: CustomScrollView(
             slivers: [
               // ── Hero header ───────────────────────────────────────────
               SliverToBoxAdapter(
                 child: _HeroHeader(
                   companyName:   provider.settings.companyName,
-                  companyNameKh: provider.settings.companyNameKh,
                   monthLabel:    monthFmt,
                   isKh:          provider.isKh,
                   onLangTap:     provider.toggleLanguage,
@@ -90,75 +99,26 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ),
 
-              // ── Recent invoices ───────────────────────────────────────
+              // ── Recent tabs ───────────────────────────────────────────
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
                 sliver: SliverToBoxAdapter(
-                  child: SectionHeader(
-                    title: s.recentInvoices,
-                    trailing: TextButton(
-                      onPressed: () => context.go('/invoices'),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: Text(
-                        'View all →',
-                        style: GoogleFonts.inter(
-                          color: AppColors.forest,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
+                  child: _RecentTabSection(
+                    selectedTab: _recentTab,
+                    onTabChanged: (i) => setState(() => _recentTab = i),
+                    invoices: recent,
+                    clients: provider.clients.take(5).toList(),
+                    cars: provider.cars.take(5).toList(),
+                    store: store,
+                    sym: sym,
+                    fmt: fmt,
+                    isKh: provider.isKh,
+                    s: s,
                   ),
                 ),
               ),
-
-              if (recent.isEmpty)
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
-                  sliver: SliverToBoxAdapter(
-                    child: EmptyState(
-                      icon: Icons.receipt_long_outlined,
-                      message: s.noInvoices,
-                      actionLabel: s.newInvoice,
-                      onAction: () => context.push('/invoices/new'),
-                    ),
-                  ),
-                )
-              else
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
-                  sliver: SliverToBoxAdapter(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Column(
-                        children: recent.asMap().entries.map((e) {
-                          final i   = e.key;
-                          final inv = e.value;
-                          final isLast = i == recent.length - 1;
-                          final client = store.findClient(inv.clientId);
-                          return _InvoiceTile(
-                            invoice:    inv,
-                            clientName: client?.name ?? '—',
-                            sym:        sym,
-                            fmt:        fmt,
-                            isKh:       provider.isKh,
-                            isLast:     isLast,
-                            onTap: () => context.push('/invoices/${inv.id}'),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ),
-                ),
             ],
+          ),
           ),
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () => context.push('/invoices/new'),
@@ -177,7 +137,6 @@ class HomeScreen extends StatelessWidget {
 
 class _HeroHeader extends StatelessWidget {
   final String companyName;
-  final String companyNameKh;
   final String monthLabel;
   final bool isKh;
   final VoidCallback onLangTap;
@@ -185,7 +144,6 @@ class _HeroHeader extends StatelessWidget {
 
   const _HeroHeader({
     required this.companyName,
-    required this.companyNameKh,
     required this.monthLabel,
     required this.isKh,
     required this.onLangTap,
@@ -283,14 +241,6 @@ class _HeroHeader extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.8,
                       height: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    companyNameKh,
-                    style: GoogleFonts.battambang(
-                      color: Colors.white.withAlpha(190),
-                      fontSize: 15,
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -580,6 +530,311 @@ class _DebtBanner extends StatelessWidget {
             ),
             const Icon(Icons.chevron_right,
                 color: AppColors.warning, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Recent tab section ────────────────────────────────────────────────────────
+
+class _RecentTabSection extends StatelessWidget {
+  final int selectedTab;
+  final ValueChanged<int> onTabChanged;
+  final List<Invoice> invoices;
+  final List<Client> clients;
+  final List<Car> cars;
+  final dynamic store;
+  final String sym;
+  final NumberFormat fmt;
+  final bool isKh;
+  final dynamic s;
+
+  const _RecentTabSection({
+    required this.selectedTab,
+    required this.onTabChanged,
+    required this.invoices,
+    required this.clients,
+    required this.cars,
+    required this.store,
+    required this.sym,
+    required this.fmt,
+    required this.isKh,
+    required this.s,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tabs = [
+      (label: 'Invoice', icon: Icons.receipt_long_rounded, route: '/invoices'),
+      (label: 'Client',  icon: Icons.people_rounded,       route: '/clients'),
+      (label: 'Cars',    icon: Icons.local_shipping_rounded, route: '/cars'),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Tab bar
+        Row(
+          children: tabs.asMap().entries.map((e) {
+            final active = e.key == selectedTab;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => onTabChanged(e.key),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  margin: EdgeInsets.only(right: e.key < tabs.length - 1 ? 8 : 0),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: active ? AppColors.forest : AppColors.surface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: active ? AppColors.forest : AppColors.border,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        e.value.icon,
+                        size: 14,
+                        color: active ? Colors.white : AppColors.muted,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        e.value.label,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: active ? Colors.white : AppColors.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 12),
+        // Tab content
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: _buildContent(context, tabs[selectedTab].route),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContent(BuildContext context, String route) {
+    if (selectedTab == 0) {
+      if (invoices.isEmpty) {
+        return Padding(
+          padding: const EdgeInsets.all(24),
+          child: EmptyState(
+            icon: Icons.receipt_long_outlined,
+            message: s.noInvoices,
+            actionLabel: s.newInvoice,
+            onAction: () => context.push('/invoices/new'),
+          ),
+        );
+      }
+      return Column(
+        children: invoices.asMap().entries.map((e) {
+          final inv = e.value;
+          final isLast = e.key == invoices.length - 1;
+          final client = store.findClient(inv.clientId);
+          return _InvoiceTile(
+            invoice: inv,
+            clientName: client?.name ?? '—',
+            sym: sym,
+            fmt: fmt,
+            isKh: isKh,
+            isLast: isLast,
+            onTap: () => context.push('/invoices/${inv.id}'),
+          );
+        }).toList(),
+      );
+    }
+
+    if (selectedTab == 1) {
+      if (clients.isEmpty) {
+        return Padding(
+          padding: const EdgeInsets.all(24),
+          child: EmptyState(
+            icon: Icons.people_outline,
+            message: 'No clients yet',
+            actionLabel: 'Add Client',
+            onAction: () => context.push('/clients/new'),
+          ),
+        );
+      }
+      return Column(
+        children: clients.asMap().entries.map((e) {
+          final c = e.value;
+          final isLast = e.key == clients.length - 1;
+          return _ClientTile(client: c, isLast: isLast, isKh: isKh,
+            onTap: () => context.push('/clients/${c.id}/edit'));
+        }).toList(),
+      );
+    }
+
+    // Cars tab
+    if (cars.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(24),
+        child: EmptyState(
+          icon: Icons.local_shipping_outlined,
+          message: 'No cars yet',
+          actionLabel: 'Add Car',
+          onAction: () => context.push('/cars/new'),
+        ),
+      );
+    }
+    return Column(
+      children: cars.asMap().entries.map((e) {
+        final car = e.value;
+        final isLast = e.key == cars.length - 1;
+        return _CarTile(car: car, isLast: isLast,
+          onTap: () => context.push('/cars/${car.id}/edit'));
+      }).toList(),
+    );
+  }
+}
+
+// ── Client tile ───────────────────────────────────────────────────────────────
+
+class _ClientTile extends StatelessWidget {
+  final Client client;
+  final bool isLast;
+  final bool isKh;
+  final VoidCallback onTap;
+
+  const _ClientTile({
+    required this.client,
+    required this.isLast,
+    required this.isKh,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(isLast ? 14 : 0),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: AppColors.forest.withAlpha(15),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: const Icon(Icons.person_rounded,
+                  color: AppColors.forest, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    client.name,
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  if (client.phone.isNotEmpty)
+                    Text(
+                      client.phone,
+                      style: GoogleFonts.inter(
+                          fontSize: 12, color: AppColors.muted),
+                    ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.muted, size: 16),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Car tile ──────────────────────────────────────────────────────────────────
+
+class _CarTile extends StatelessWidget {
+  final Car car;
+  final bool isLast;
+  final VoidCallback onTap;
+
+  const _CarTile({
+    required this.car,
+    required this.isLast,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(isLast ? 14 : 0),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: AppColors.medium.withAlpha(15),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: const Icon(Icons.local_shipping_rounded,
+                  color: AppColors.medium, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    car.plateNumber,
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  if (car.description.isNotEmpty)
+                    Text(
+                      car.description,
+                      style: GoogleFonts.inter(
+                          fontSize: 12, color: AppColors.muted),
+                    ),
+                ],
+              ),
+            ),
+            Text(
+              '${(car.capacity / 1000).toStringAsFixed(0)}t',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.medium,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, color: AppColors.muted, size: 16),
           ],
         ),
       ),

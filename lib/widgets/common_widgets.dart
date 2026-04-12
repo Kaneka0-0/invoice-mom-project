@@ -106,21 +106,23 @@ class StatCard extends StatelessWidget {
         splashColor: color.withAlpha(20),
         child: Container(
           decoration: BoxDecoration(
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: AppColors.border),
-            // Accent left bar
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [
-                color.withAlpha(18),
-                AppColors.surface,
-              ],
-              stops: const [0.0, 0.12],
-            ),
           ),
-          child: Stack(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Stack(
             children: [
+              // Brick pattern overlay
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: BrickPatternPainter(
+                    color: color,
+                    opacity: 0.03,
+                  ),
+                ),
+              ),
               // Left accent bar
               Positioned(
                 left: 0, top: 12, bottom: 12,
@@ -169,6 +171,7 @@ class StatCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
           ),
         ),
       ),
