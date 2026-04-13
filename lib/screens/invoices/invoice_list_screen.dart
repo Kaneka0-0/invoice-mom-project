@@ -287,9 +287,8 @@ class _ExportSheet extends StatefulWidget {
 }
 
 class _ExportSheetState extends State<_ExportSheet> {
-  String? _month;   // 'yyyy-MM' or null = all
+  String? _month;    // 'yyyy-MM' or null = all
   String? _clientId; // null = all clients
-  bool _exporting = false;
 
   AppProvider get p => widget.provider;
 
@@ -331,23 +330,19 @@ class _ExportSheetState extends State<_ExportSheet> {
     return months;
   }
 
-  Future<void> _export() async {
+  void _openSpreadsheet() {
     final invoices = _matched;
     if (invoices.isEmpty) return;
-    setState(() => _exporting = true);
-    Navigator.pop(context);
-    try {
-      final bytes = await PdfService.generateBatchReport(
-        invoices:   invoices,
-        allClients: p.store.clients,
-        brickTypes: p.store.brickTypes,
-        settings:   p.settings,
-        title:      _title,
-      );
-      if (mounted) await Printing.layoutPdf(onLayout: (_) => bytes);
-    } finally {
-      if (mounted) setState(() => _exporting = false);
-    }
+    final title = _title;
+    final nav = Navigator.of(context);
+    nav.pop(); // close sheet
+    nav.push(MaterialPageRoute(
+      builder: (_) => _SpreadsheetPage(
+        invoices: invoices,
+        provider: p,
+        title: title,
+      ),
+    ));
   }
 
   @override
@@ -465,18 +460,13 @@ class _ExportSheetState extends State<_ExportSheet> {
           ),
           const SizedBox(height: 16),
 
-          // ── Export button ───────────────────────────────────────────
+          // ── Open spreadsheet button ─────────────────────────────────
           ElevatedButton.icon(
-            onPressed: (matched.isEmpty || _exporting) ? null : _export,
-            icon: _exporting
-                ? const SizedBox(
-                    width: 16, height: 16,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.download, size: 18),
-            label: Text(_exporting
-                ? 'Generating…'
-                : 'Export ${matched.length} Invoice${matched.length == 1 ? '' : 's'} as PDF'),
+            onPressed: matched.isEmpty ? null : _openSpreadsheet,
+            icon: const Icon(Icons.table_chart_outlined, size: 18),
+            label: Text(matched.isEmpty
+                ? 'No invoices match'
+                : 'Open ${matched.length} Invoice${matched.length == 1 ? '' : 's'} in Spreadsheet'),
             style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14)),
           ),
@@ -486,6 +476,363 @@ class _ExportSheetState extends State<_ExportSheet> {
             child: const Text('Cancel'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Editable row ──────────────────────────────────────────────────────────────
+class _EditRow {
+  final TextEditingController number;
+  final TextEditingController date;
+  final TextEditingController client;
+  final TextEditingController brickType;
+  final TextEditingController qty;
+  final TextEditingController price;
+
+  _EditRow({
+    required String number,
+    required String date,
+    required String client,
+    required String brickType,
+    required int qty,
+    required double price,
+  })  : number    = TextEditingController(text: number),
+        date      = TextEditingController(text: date),
+        client    = TextEditingController(text: client),
+        brickType = TextEditingController(text: brickType),
+        qty       = TextEditingController(text: '$qty'),
+        price     = TextEditingController(text: price.toStringAsFixed(2));
+
+  double get total {
+    final q = double.tryParse(qty.text.replaceAll(',', '')) ?? 0;
+    final p = double.tryParse(price.text.replaceAll(',', '')) ?? 0;
+    return q * p;
+  }
+
+  void dispose() {
+    number.dispose(); date.dispose(); client.dispose();
+    brickType.dispose(); qty.dispose(); price.dispose();
+  }
+}
+
+// ── Spreadsheet page ──────────────────────────────────────────────────────────
+class _SpreadsheetPage extends StatefulWidget {
+  final List<Invoice> invoices;
+  final AppProvider provider;
+  final String title;
+
+  const _SpreadsheetPage({
+    required this.invoices,
+    required this.provider,
+    required this.title,
+  });
+
+  @override
+  State<_SpreadsheetPage> createState() => _SpreadsheetPageState();
+}
+
+class _SpreadsheetPageState extends State<_SpreadsheetPage> {
+  late List<_EditRow> _rows;
+  bool _exporting = false;
+
+  static const _colW    = [90.0, 80.0, 110.0, 110.0, 65.0, 85.0, 85.0];
+  static const _headers = ['Invoice #', 'Date', 'Client', 'Brick Type', 'Qty', 'Unit Price', 'Total'];
+  static const _tableW  = 90.0 + 80.0 + 110.0 + 110.0 + 65.0 + 85.0 + 85.0; // 625
+
+  final _fmt = NumberFormat('#,##0.00');
+
+  @override
+  void initState() {
+    super.initState();
+    _rows = _buildRows();
+    for (final r in _rows) {
+      r.qty.addListener(_onAmountChanged);
+      r.price.addListener(_onAmountChanged);
+    }
+  }
+
+  void _onAmountChanged() => setState(() {});
+
+  @override
+  void dispose() {
+    for (final r in _rows) {
+      r.qty.removeListener(_onAmountChanged);
+      r.price.removeListener(_onAmountChanged);
+      r.dispose();
+    }
+    super.dispose();
+  }
+
+  List<_EditRow> _buildRows() {
+    final result  = <_EditRow>[];
+    final dateFmt = DateFormat('dd/MM/yyyy');
+    for (final inv in widget.invoices) {
+      final client = widget.provider.store.findClient(inv.clientId);
+      String dateStr = inv.date;
+      try { dateStr = dateFmt.format(DateTime.parse(inv.date)); } catch (_) {}
+      for (final item in inv.items) {
+        final bt = widget.provider.store.brickTypes
+            .where((b) => b.id == item.brickTypeId)
+            .firstOrNull;
+        result.add(_EditRow(
+          number:    inv.number,
+          date:      dateStr,
+          client:    client?.name ?? '—',
+          brickType: bt?.name ?? 'Brick',
+          qty:       item.quantity,
+          price:     item.unitPrice,
+        ));
+      }
+    }
+    return result;
+  }
+
+  double get _grandTotal => _rows.fold(0, (s, r) => s + r.total);
+
+  Future<void> _export() async {
+    setState(() => _exporting = true);
+    try {
+      final sym = widget.provider.settings.currencySymbol;
+      final rowMaps = _rows.map((r) => {
+        'number':    r.number.text,
+        'date':      r.date.text,
+        'client':    r.client.text,
+        'brickType': r.brickType.text,
+        'qty':       r.qty.text,
+        'unitPrice': r.price.text,
+        'total':     _fmt.format(r.total),
+      }).toList();
+      final bytes = await PdfService.generateSpreadsheetExport(
+        rows: rowMaps, settings: widget.provider.settings,
+        title: widget.title, sym: sym,
+      );
+      if (mounted) await Printing.layoutPdf(onLayout: (_) => bytes);
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sym   = widget.provider.settings.currencySymbol;
+    final total = _grandTotal;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title,
+            style: const TextStyle(fontSize: 14)),
+        actions: [
+          TextButton.icon(
+            icon: _exporting
+                ? const SizedBox(
+                    width: 16, height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.picture_as_pdf_outlined, size: 18),
+            label: Text(_exporting ? 'Generating…' : 'Export PDF'),
+            onPressed: (_rows.isEmpty || _exporting) ? null : _export,
+            style: TextButton.styleFrom(foregroundColor: Colors.white),
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Summary bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+            color: AppColors.pale,
+            child: Row(
+              children: [
+                const Icon(Icons.table_chart_outlined, size: 14, color: AppColors.forest),
+                const SizedBox(width: 6),
+                Text('${_rows.length} row${_rows.length == 1 ? '' : 's'}  •  tap any cell to edit',
+                    style: const TextStyle(fontSize: 12, color: AppColors.slate)),
+                const Spacer(),
+                Text('$sym${_fmt.format(total)}',
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.forest)),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          // Table
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: _tableW,
+                child: Column(
+                  children: [
+                    _buildHeader(),
+                    const Divider(height: 1, color: AppColors.border),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: _rows.length,
+                        itemBuilder: (_, i) => _SpreadsheetRow(
+                          row: _rows[i], index: i,
+                          colW: _colW, fmt: _fmt, sym: sym,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: ElevatedButton.icon(
+            icon: _exporting
+                ? const SizedBox(
+                    width: 16, height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.picture_as_pdf_outlined, size: 18),
+            label: Text(_exporting
+                ? 'Generating…'
+                : 'Export ${_rows.length} Row${_rows.length == 1 ? '' : 's'} as PDF'),
+            onPressed: (_rows.isEmpty || _exporting) ? null : _export,
+            style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      color: AppColors.forest,
+      child: Row(
+        children: List.generate(_headers.length, (i) {
+          return SizedBox(
+            width: _colW[i],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+              child: Text(_headers[i],
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                  textAlign: i >= 4 ? TextAlign.right : TextAlign.left),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+// ── Spreadsheet row ───────────────────────────────────────────────────────────
+class _SpreadsheetRow extends StatefulWidget {
+  final _EditRow row;
+  final int index;
+  final List<double> colW;
+  final NumberFormat fmt;
+  final String sym;
+
+  const _SpreadsheetRow({
+    required this.row, required this.index,
+    required this.colW, required this.fmt, required this.sym,
+  });
+
+  @override
+  State<_SpreadsheetRow> createState() => _SpreadsheetRowState();
+}
+
+class _SpreadsheetRowState extends State<_SpreadsheetRow> {
+  @override
+  void initState() {
+    super.initState();
+    widget.row.qty.addListener(_rebuild);
+    widget.row.price.addListener(_rebuild);
+  }
+
+  void _rebuild() => setState(() {});
+
+  @override
+  void dispose() {
+    widget.row.qty.removeListener(_rebuild);
+    widget.row.price.removeListener(_rebuild);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEven = widget.index.isEven;
+    final r      = widget.row;
+    final total  = r.total;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isEven ? AppColors.surface : AppColors.pale,
+        border: const Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
+      ),
+      child: Row(
+        children: [
+          _cell(r.number,    widget.colW[0], readOnly: true),
+          _vline(),
+          _cell(r.date,      widget.colW[1]),
+          _vline(),
+          _cell(r.client,    widget.colW[2]),
+          _vline(),
+          _cell(r.brickType, widget.colW[3]),
+          _vline(),
+          _cell(r.qty,   widget.colW[4], align: TextAlign.right,
+              keyboard: TextInputType.number),
+          _vline(),
+          _cell(r.price, widget.colW[5], align: TextAlign.right,
+              keyboard: const TextInputType.numberWithOptions(decimal: true)),
+          _vline(),
+          // Total (computed, read-only)
+          SizedBox(
+            width: widget.colW[6],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
+              child: Text(
+                '${widget.sym}${widget.fmt.format(total)}',
+                style: const TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.forest),
+                textAlign: TextAlign.right,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _vline() => Container(width: 1, height: 40, color: AppColors.border);
+
+  Widget _cell(
+    TextEditingController ctrl,
+    double width, {
+    bool readOnly = false,
+    TextAlign align = TextAlign.left,
+    TextInputType keyboard = TextInputType.text,
+  }) {
+    return SizedBox(
+      width: width,
+      child: TextField(
+        controller: ctrl,
+        readOnly: readOnly,
+        textAlign: align,
+        keyboardType: keyboard,
+        style: TextStyle(
+            fontSize: 11,
+            color: readOnly ? AppColors.muted : AppColors.ink),
+        decoration: InputDecoration(
+          isDense: true,
+          filled: false,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
+          enabledBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
+          focusedBorder: const OutlineInputBorder(
+            borderSide: BorderSide(color: AppColors.forest, width: 1.5),
+            borderRadius: BorderRadius.zero,
+          ),
+        ),
       ),
     );
   }

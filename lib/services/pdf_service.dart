@@ -91,6 +91,113 @@ class PdfService {
     );
   }
 
+  // ── Spreadsheet export (editable table → PDF) ─────────────────────────────
+  static Future<Uint8List> generateSpreadsheetExport({
+    required List<Map<String, String>> rows,
+    required AppSettings settings,
+    required String title,
+    required String sym,
+  }) async {
+    final doc     = pw.Document(title: title);
+    final regular = await PdfGoogleFonts.interRegular();
+    final bold    = await PdfGoogleFonts.interBold();
+    final theme   = pw.ThemeData.withFont(base: regular, bold: bold);
+
+    doc.addPage(pw.MultiPage(
+      theme:      theme,
+      pageFormat: PdfPageFormat.a4,
+      margin:     const pw.EdgeInsets.fromLTRB(28, 16, 28, 16),
+      header: (ctx) => _batchHeader(settings, title, ctx),
+      footer: (ctx) => _batchFooter(settings, ctx),
+      build: (ctx) => _buildSpreadsheetContent(rows: rows, sym: sym),
+    ));
+
+    return doc.save();
+  }
+
+  static List<pw.Widget> _buildSpreadsheetContent({
+    required List<Map<String, String>> rows,
+    required String sym,
+  }) {
+    final fmt   = NumberFormat('#,##0.00');
+    double total = 0;
+    for (final r in rows) {
+      total += double.tryParse(r['total']?.replaceAll(',', '') ?? '0') ?? 0;
+    }
+
+    return [
+      // Stats
+      pw.Row(children: [
+        pw.Expanded(child: _statBox('Rows', '${rows.length}')),
+        pw.SizedBox(width: 8),
+        pw.Expanded(child: _statBox('Total', '$sym${fmt.format(total)}')),
+      ]),
+      pw.SizedBox(height: 14),
+
+      // Table
+      pw.Table(
+        border: const pw.TableBorder(
+          top: pw.BorderSide(color: _forest, width: 1.5),
+          bottom: pw.BorderSide(color: _border),
+          horizontalInside: pw.BorderSide(color: _border, width: 0.5),
+        ),
+        columnWidths: const {
+          0: pw.FixedColumnWidth(65),
+          1: pw.FixedColumnWidth(52),
+          2: pw.FlexColumnWidth(2),
+          3: pw.FlexColumnWidth(2.5),
+          4: pw.FixedColumnWidth(50),
+          5: pw.FixedColumnWidth(60),
+          6: pw.FixedColumnWidth(62),
+        },
+        children: [
+          pw.TableRow(
+            decoration: const pw.BoxDecoration(color: _forest),
+            children: ['Invoice #', 'Date', 'Client', 'Brick Type', 'Qty', 'Unit Price', 'Total']
+                .map((h) => pw.Padding(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 7),
+                      child: pw.Text(h,
+                          style: pw.TextStyle(
+                              color: PdfColors.white,
+                              fontSize: 8,
+                              fontWeight: pw.FontWeight.bold)),
+                    ))
+                .toList(),
+          ),
+          ...rows.asMap().entries.map((entry) {
+            final isEven = entry.key.isEven;
+            final r = entry.value;
+            final cells = [
+              r['number'] ?? '',
+              r['date'] ?? '',
+              r['client'] ?? '',
+              r['brickType'] ?? '',
+              r['qty'] ?? '',
+              '$sym${r['unitPrice'] ?? ''}',
+              '$sym${r['total'] ?? ''}',
+            ];
+            return pw.TableRow(
+              decoration: pw.BoxDecoration(color: isEven ? PdfColors.white : _pale),
+              children: cells.asMap().entries.map((cell) {
+                final isTotal    = cell.key == 6;
+                final alignRight = cell.key >= 4;
+                return pw.Padding(
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 5),
+                  child: pw.Text(cell.value,
+                      style: pw.TextStyle(
+                          fontSize: 8,
+                          color: isTotal ? _forest : _slate,
+                          fontWeight: isTotal ? pw.FontWeight.bold : pw.FontWeight.normal),
+                      textAlign: alignRight ? pw.TextAlign.right : pw.TextAlign.left),
+                );
+              }).toList(),
+            );
+          }),
+        ],
+      ),
+    ];
+  }
+
   // ── Individual invoice page layout ────────────────────────────────────────
   static pw.Widget _buildInvoicePage({
     required Invoice invoice,
