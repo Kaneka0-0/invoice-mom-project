@@ -538,7 +538,7 @@ class _SpreadsheetPageState extends State<_SpreadsheetPage> {
 
   static const _colW    = [90.0, 80.0, 110.0, 110.0, 65.0, 85.0, 85.0];
   static const _headers = ['Invoice #', 'Date', 'Client', 'Brick Type', 'Qty', 'Unit Price', 'Total'];
-  static const _tableW  = 90.0 + 80.0 + 110.0 + 110.0 + 65.0 + 85.0 + 85.0; // 625
+  static const _tableW  = 90.0 + 80.0 + 110.0 + 110.0 + 65.0 + 85.0 + 85.0 + 6.0; // 631 (625 cols + 6 dividers)
 
   final _fmt = NumberFormat('#,##0.00');
 
