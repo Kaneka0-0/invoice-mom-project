@@ -34,6 +34,9 @@
 
   <!-- html2pdf: HTML → PDF download (includes html2canvas + jsPDF) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- Standalone html2canvas + jsPDF used by generateA5Pdf for exact A5 sizing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
     // Generate and download the PDF (called directly or from the preview overlay).
     async function generateInvoicePdf(htmlContent, filename) {
@@ -225,19 +228,36 @@
       wrap.style.cssText = 'position:absolute;left:-9999px;top:0;width:559px;';
       wrap.innerHTML = htmlContent;
       document.body.appendChild(wrap);
+
       var pages = wrap.querySelectorAll('.page');
-      var content = pages.length > 1 ? wrap : (pages[0] || wrap);
       await document.fonts.ready;
-      var opt = {
-        margin: 0,
-        filename: filename,
-        image: { type: 'png' },
-        html2canvas: { scale: 4, useCORS: true, allowTaint: false, letterRendering: true,
-                       windowWidth: 559 },
-        jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' }
-      };
-      try { await html2pdf().set(opt).from(content).save(); }
-      finally { document.body.removeChild(wrap); }
+
+      try {
+        var { jsPDF } = window.jspdf;
+        var pdf = new jsPDF({ unit: 'mm', format: 'a5', orientation: 'portrait' });
+        var pageCount = Math.max(1, pages.length);
+
+        for (var i = 0; i < pageCount; i++) {
+          if (i > 0) pdf.addPage([148, 210], 'portrait');
+          var el = pages.length > 0 ? pages[i] : wrap;
+          var canvas = await html2canvas(el, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: false,
+            letterRendering: true,
+            width: 559,
+            height: 794,
+            scrollX: 0,
+            scrollY: 0
+          });
+          // Explicitly fill the full A5 page (148mm × 210mm) with no scaling guesswork
+          pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 148, 210);
+        }
+
+        pdf.save(filename);
+      } finally {
+        document.body.removeChild(wrap);
+      }
     }
 
     // Called from Dart. Shows a preview overlay for the monthly invoice (A5 at 96dpi).
