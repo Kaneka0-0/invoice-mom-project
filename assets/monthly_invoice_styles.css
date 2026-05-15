@@ -338,7 +338,7 @@ body { background: #d8d8d8; display: flex; flex-direction: column; align-items: 
 .acleda-block {
   position: absolute;
   left: 14px;
-  top: 506px;
+  bottom: 8px;
   width: 48px;
   display: flex;
   flex-direction: column;
@@ -354,7 +354,7 @@ body { background: #d8d8d8; display: flex; flex-direction: column; align-items: 
 .aba-block {
   position: absolute;
   left: 68px;
-  top: 506px;
+  bottom: 8px;
   width: 48px;
   display: flex;
   flex-direction: column;
@@ -379,7 +379,7 @@ body { background: #d8d8d8; display: flex; flex-direction: column; align-items: 
 .signature-box {
   position: absolute;
   left: 122px;
-  top: 506px;
+  bottom: 8px;
   width: 130px;
   height: 80px;
   border: 0.5px solid rgba(10,10,10,0.3);
@@ -407,7 +407,7 @@ body { background: #d8d8d8; display: flex; flex-direction: column; align-items: 
 .payment-date-box {
   position: absolute;
   left: 258px;
-  top: 506px;
+  bottom: 8px;
   width: 148px;
   height: 80px;
   border: 0.5px solid rgba(10,10,10,0.3);

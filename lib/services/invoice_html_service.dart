@@ -362,21 +362,10 @@ class InvoiceHtmlService {
           ? <String>[]
           : allRowHtml.sublist(start, end);
 
-      // Real rows + empty padding rows to fill the page.
+      // Only real data rows — no empty padding rows.
       final rowBuf = StringBuffer();
       for (final r in pageRows) {
         rowBuf.write(r);
-      }
-      for (int i = pageRows.length; i < capacity; i++) {
-        final rowNum = start + i + 1;
-        rowBuf.write('<tr>'
-            '<td class="cell-no">$rowNum</td>'
-            '<td class="cell-date"></td>'
-            '<td class="cell-desc"></td>'
-            '<td class="cell-qty"></td>'
-            '<td class="cell-up"></td>'
-            '<td class="cell-total"></td>'
-            '</tr>');
       }
 
       final tfoot  = isLast ? _buildTfootHtml(sym, netTotal) : '<tfoot></tfoot>';
