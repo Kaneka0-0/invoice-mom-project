@@ -197,6 +197,27 @@
       });
     }
 
+    // Generate and download an A5 PDF (used for the monthly invoice).
+    async function generateA5Pdf(htmlContent, filename) {
+      var wrap = document.createElement('div');
+      wrap.style.cssText = 'position:absolute;left:-9999px;top:0;width:420px;';
+      wrap.innerHTML = htmlContent;
+      document.body.appendChild(wrap);
+      var pages = wrap.querySelectorAll('.page');
+      var content = pages.length > 1 ? wrap : (pages[0] || wrap);
+      await document.fonts.ready;
+      var opt = {
+        margin: 0,
+        filename: filename,
+        image: { type: 'png' },
+        html2canvas: { scale: 4, useCORS: true, allowTaint: false, letterRendering: true },
+        jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'] }
+      };
+      try { await html2pdf().set(opt).from(content).save(); }
+      finally { document.body.removeChild(wrap); }
+    }
+
     // Generate and download an A4 PDF (used for the monthly invoice).
     // Supports multi-page: if htmlContent contains multiple .page divs each is
     // a separate PDF page (page-break-after:always handles the split).
@@ -220,10 +241,10 @@
       finally { document.body.removeChild(wrap); }
     }
 
-    // Called from Dart. Shows a preview overlay for the monthly invoice (A4).
+    // Called from Dart. Shows a preview overlay for the monthly invoice (A5).
     function previewMonthlyInvoicePdf(htmlContent, filename) {
-      var pageW = 595;
-      var pageH = 862;
+      var pageW = 420;
+      var pageH = 595;
 
       // Count pages to size the iframe correctly
       var tmp = document.createElement('div');
@@ -311,11 +332,11 @@
         if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onEsc); }
       });
 
-      // Download button triggers A4 PDF generation
+      // Download button triggers A5 PDF generation
       dlBtn.addEventListener('click', async function() {
         dlBtn.disabled = true;
         dlBtn.textContent = 'Generating…';
-        try { await generateA4Pdf(htmlContent, filename); }
+        try { await generateA5Pdf(htmlContent, filename); }
         finally { dlBtn.disabled = false; dlBtn.innerHTML = '&#8659;&nbsp;Download PDF'; }
       });
     }
