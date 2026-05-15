@@ -12,6 +12,19 @@ Future<void> initSupabase() async {
 
 SupabaseClient get _db => Supabase.instance.client;
 
+// UUIDs from brick_types (existing rows) and brick_categories (seeded) tables.
+String? _brickTypeId(String priceType) => switch (priceType) {
+  'normal' => '65db6386-2d0c-431e-8ed4-cc08930d6325',
+  'burned' => 'd885775c-8cd2-4ed2-8813-80a1e9612a5c',
+  _        => null,
+};
+
+String? _brickCategoryId(String brickCategory) => switch (brickCategory) {
+  'hol' => '00000000-0000-0000-0001-000000000001',
+  'sol' => '00000000-0000-0000-0001-000000000002',
+  _     => null,
+};
+
 class SupabaseSync {
   // ── Clients ──────────────────────────────────────────────────────────────
   static Future<List<Client>> fetchClients() async {
@@ -23,132 +36,70 @@ class SupabaseSync {
   static Future<void> deleteClient(String id) async =>
       _db.from('clients').delete().eq('id', id);
 
-  // ── Workers ──────────────────────────────────────────────────────────────
-  static Future<List<Worker>> fetchWorkers() async {
-    final rows = await _db.from('workers').select().order('created_at');
-    return rows.map((r) => Worker.fromJson(r)).toList();
-  }
-  static Future<void> upsertWorker(Worker w) async =>
-      _db.from('workers').upsert(w.toJson());
-  static Future<void> deleteWorker(String id) async =>
-      _db.from('workers').delete().eq('id', id);
-
-  // ── Cars ─────────────────────────────────────────────────────────────────
-  static Future<List<Car>> fetchCars() async {
-    final rows = await _db.from('cars').select().order('created_at');
-    return rows.map((r) => Car.fromJson(r)).toList();
-  }
-  static Future<void> upsertCar(Car c) async =>
-      _db.from('cars').upsert(c.toJson()..remove('created_at'));
-  static Future<void> deleteCar(String id) async =>
-      _db.from('cars').delete().eq('id', id);
-
-  // ── Vendors ──────────────────────────────────────────────────────────────
-  static Future<List<Vendor>> fetchVendors() async {
-    final rows = await _db.from('vendors').select().order('created_at');
-    return rows.map((r) => Vendor.fromJson(r)).toList();
-  }
-  static Future<void> upsertVendor(Vendor v) async =>
-      _db.from('vendors').upsert(v.toJson());
-  static Future<void> deleteVendor(String id) async =>
-      _db.from('vendors').delete().eq('id', id);
-
-  // ── Brick Types ──────────────────────────────────────────────────────────
-  static Future<List<BrickType>> fetchBrickTypes() async {
-    final rows = await _db.from('brick_types').select().order('created_at');
-    return rows.map((r) => BrickType.fromJson(r)).toList();
-  }
-  static Future<void> upsertBrickType(BrickType b) async =>
-      _db.from('brick_types').upsert(b.toJson());
-  static Future<void> deleteBrickType(String id) async =>
-      _db.from('brick_types').delete().eq('id', id);
-
-  // ── Inventory ────────────────────────────────────────────────────────────
-  static Future<List<Inventory>> fetchInventory() async {
-    final rows = await _db.from('inventory').select();
-    return rows.map((r) => Inventory.fromJson(r)).toList();
-  }
-  static Future<void> upsertInventory(Inventory i) async =>
-      _db.from('inventory').upsert(i.toJson());
-
   // ── Invoices (with items via join) ────────────────────────────────────────
   static Future<List<Invoice>> fetchInvoices() async {
-    final rows = await _db
-        .from('invoices')
-        .select('*, invoice_items(*)')
-        .order('created_at');
-    return rows.map((r) => Invoice.fromJson(r)).toList();
+    try {
+      final rows = await _db
+          .from('invoices')
+          .select('*, invoice_items(*)')
+          .order('created_at', ascending: false);
+      return rows.map((r) => Invoice.fromJson(r)).toList();
+    } catch (_) {
+      // invoice_items table join failed — fall back to invoices only
+      final rows = await _db
+          .from('invoices')
+          .select()
+          .order('created_at', ascending: false);
+      return rows.map((r) => Invoice.fromJson(r)).toList();
+    }
   }
 
   /// Upserts the invoice row, then replaces all its invoice_items.
   static Future<void> upsertInvoice(Invoice inv) async {
-    // Build invoice row without the embedded items list
-    final row = inv.toJson()..remove('items');
+    final row = <String, dynamic>{
+      'id':         inv.id,
+      'number':     inv.number,
+      'client_id':  inv.clientId,
+      'date':       inv.date,
+      'status':     inv.status.name,
+      'subtotal':   inv.subtotal,
+      'total':      inv.total,
+      'deposit':    inv.deposit,
+      'notes':      inv.notes,
+      'created_at': inv.createdAt,
+    };
+
     await _db.from('invoices').upsert(row);
 
-    // Replace items
-    await _db.from('invoice_items').delete().eq('invoice_id', inv.id);
-    if (inv.items.isNotEmpty) {
-      await _db.from('invoice_items').insert(
-        inv.items.map((item) {
-          final j = item.toJson();
-          j['invoice_id'] = inv.id;
-          return j;
-        }).toList(),
-      );
-    }
+    // Replace invoice_items (table may not exist yet — ignore errors)
+    try {
+      await _db.from('invoice_items').delete().eq('invoice_id', inv.id);
+      if (inv.items.isNotEmpty) {
+        await _db.from('invoice_items').insert(
+          inv.items.map((item) => {
+            'id':                 item.id,
+            'invoice_id':         inv.id,
+            'quantity':           item.quantity,
+            'unit_price':         item.unitPrice,
+            'total':              item.total,
+            'price_type':         item.priceType,
+            'brick_category':     item.brickCategory,
+            'brick_type_id':      _brickTypeId(item.priceType),
+            'brick_category_id':  _brickCategoryId(item.brickCategory),
+          }).toList(),
+        );
+      }
+    } catch (_) {}
   }
 
-  static Future<void> deleteInvoice(String id) async =>
-      _db.from('invoices').delete().eq('id', id);
-
-  // ── Deliveries (with items via join) ──────────────────────────────────────
-  static Future<List<Delivery>> fetchDeliveries() async {
-    final rows = await _db
-        .from('deliveries')
-        .select('*, delivery_items(*)')
-        .order('delivery_date');
-    return rows.map((r) => Delivery.fromJson(r)).toList();
+  static Future<void> deleteInvoice(String id) async {
+    // Clear all FK references first (cascade delete not configured in DB)
+    try { await _db.from('invoice_items').delete().eq('invoice_id', id); } catch (_) {}
+    try { await _db.from('delivery_items').delete().eq('invoice_id', id); } catch (_) {}
+    try { await _db.from('delivery_proofs').delete().eq('invoice_id', id); } catch (_) {}
+    try { await _db.from('borrow_transactions').delete().eq('related_invoice_id', id); } catch (_) {}
+    await _db.from('invoices').delete().eq('id', id);
   }
-
-  static Future<void> upsertDelivery(Delivery d) async {
-    final row = d.toJson()..remove('items');
-    await _db.from('deliveries').upsert(row);
-
-    await _db.from('delivery_items').delete().eq('delivery_id', d.id);
-    if (d.items.isNotEmpty) {
-      await _db.from('delivery_items').insert(
-        d.items.map((item) {
-          final j = item.toJson();
-          j['delivery_id'] = d.id;
-          return j;
-        }).toList(),
-      );
-    }
-  }
-
-  static Future<void> deleteDelivery(String id) async =>
-      _db.from('deliveries').delete().eq('id', id);
-
-  // ── Borrow Transactions ───────────────────────────────────────────────────
-  static Future<List<BorrowTransaction>> fetchBorrows() async {
-    final rows = await _db.from('borrow_transactions').select().order('created_at');
-    return rows.map((r) => BorrowTransaction.fromJson(r)).toList();
-  }
-  static Future<void> insertBorrow(BorrowTransaction b) async =>
-      _db.from('borrow_transactions').insert(b.toJson());
-  static Future<void> deleteBorrow(String id) async =>
-      _db.from('borrow_transactions').delete().eq('id', id);
-
-  // ── Worker Transactions ───────────────────────────────────────────────────
-  static Future<List<WorkerTransaction>> fetchWorkerTransactions() async {
-    final rows = await _db.from('worker_transactions').select().order('created_at');
-    return rows.map((r) => WorkerTransaction.fromJson(r)).toList();
-  }
-  static Future<void> insertWorkerTransaction(WorkerTransaction t) async =>
-      _db.from('worker_transactions').insert(t.toJson());
-  static Future<void> deleteWorkerTransaction(String id) async =>
-      _db.from('worker_transactions').delete().eq('id', id);
 
   // ── Settings ──────────────────────────────────────────────────────────────
   static Future<AppSettings?> fetchSettings() async {
@@ -165,10 +116,7 @@ class SupabaseSync {
   // ── Realtime ──────────────────────────────────────────────────────────────
   static RealtimeChannel subscribeToAll(VoidCallback onRefresh) {
     const tables = [
-      'clients', 'workers', 'cars', 'vendors',
-      'brick_types', 'inventory', 'invoices', 'invoice_items',
-      'deliveries', 'delivery_items', 'borrow_transactions',
-      'worker_transactions', 'settings',
+      'clients', 'invoices', 'invoice_items', 'settings',
     ];
     var channel = _db.channel('panha:all');
     for (final table in tables) {

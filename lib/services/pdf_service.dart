@@ -1,17 +1,21 @@
-import 'dart:typed_data';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../models/models.dart';
 
-// ─── Colors ──────────────────────────────────────────────────────────────────
+// ─── Colors: individual invoice ───────────────────────────────────────────────
+const _ink    = PdfColor.fromInt(0xFF0A0A0A);
+const _invRed = PdfColor.fromInt(0xFFBC0000);
+const _muted  = PdfColor.fromInt(0xFF616D68);
+
+// ─── Colors: batch / spreadsheet ─────────────────────────────────────────────
 const _forest = PdfColor.fromInt(0xFF1B4D3E);
 const _border = PdfColor.fromInt(0xFFD6EAE0);
 const _pale   = PdfColor.fromInt(0xFFD8F3DC);
 const _slate  = PdfColor.fromInt(0xFF4A6A58);
-const _green  = PdfColor.fromInt(0xFF22A854);
-const _amber  = PdfColor.fromInt(0xFFF59E0B);
+
 const _grey   = PdfColor.fromInt(0xFF8CA89A);
 
 class PdfService {
@@ -19,27 +23,298 @@ class PdfService {
   static final _intFmt  = NumberFormat('#,###');
   static final _dateFmt = DateFormat('dd/MM/yyyy');
 
-  // ── Individual invoice ────────────────────────────────────────────────────
+  // ── Individual invoice (pw.Stack + pw.SvgImage template) ────────────────
+  //
+  // SVG coordinate space : 420 × 595
+  // A4 PDF (no margin)   : 595.28 × 841.89 pt
+  // Scale: x * (595.28/420) ≈ x * 1.4173
+  //        y * (841.89/595) ≈ y * 1.4150
+  //
+  // Column x-positions (from SVG path analysis):
+  //   Nº 24–54 (w30)  Product 54–176 (w122)  QTY 176–252 (w76)
+  //   U.P 252–319 (w67)  Amount 319–396 (w77)
+  //
+  // Table row y-starts (height 28 each): 237 265 293 321 349
   static Future<Uint8List> generateInvoice({
     required Invoice invoice,
     required Client? client,
     required List<BrickType> brickTypes,
     required AppSettings settings,
   }) async {
-    final doc      = pw.Document(title: invoice.number, author: settings.companyName);
-    final regular  = await PdfGoogleFonts.interRegular();
-    final bold     = await PdfGoogleFonts.interBold();
-    final theme    = pw.ThemeData.withFont(base: regular, bold: bold);
+    final doc = pw.Document(title: invoice.number, author: settings.companyName);
+
+    // Fonts (Khmer primary, Inter fallback)
+    final khmer     = await PdfGoogleFonts.notoSansKhmerRegular();
+    final khmerBold = await PdfGoogleFonts.notoSansKhmerBold();
+    final latin     = await PdfGoogleFonts.interRegular();
+    final latinBold = await PdfGoogleFonts.interBold();
+
+    // SVG template
+    String? svgStr;
+    try {
+      svgStr = await rootBundle.loadString(
+          'assets/invoice-image/individual-invoice.svg');
+    } catch (_) {}
+
+    // Logo PNG
+    pw.ImageProvider? logo;
+    try {
+      final data = await rootBundle.load('assets/invoice-image/logo.png');
+      logo = pw.MemoryImage(data.buffer.asUint8List());
+    } catch (_) {}
+
+    final theme = pw.ThemeData.withFont(
+      base: khmer,
+      bold: khmerBold,
+      fontFallback: [latin, latinBold],
+    );
 
     doc.addPage(pw.Page(
       theme: theme,
       pageFormat: PdfPageFormat.a4,
-      margin: const pw.EdgeInsets.symmetric(horizontal: 28, vertical: 28),
+      margin: pw.EdgeInsets.zero,
       build: (ctx) => _buildInvoicePage(
-          invoice: invoice, client: client, brickTypes: brickTypes, settings: settings),
+        invoice: invoice,
+        client: client,
+        brickTypes: brickTypes,
+        settings: settings,
+        logo: logo,
+        svgStr: svgStr,
+        pageW: ctx.page.pageFormat.width,
+        pageH: ctx.page.pageFormat.height,
+      ),
     ));
 
     return doc.save();
+  }
+
+  static pw.Widget _buildInvoicePage({
+    required Invoice invoice,
+    required Client? client,
+    required List<BrickType> brickTypes,
+    required AppSettings settings,
+    required pw.ImageProvider? logo,
+    required String? svgStr,
+    required double pageW,
+    required double pageH,
+  }) {
+    const svgW = 420.0;
+    const svgH = 595.0;
+    final sym  = settings.currencySymbol;
+
+    // Convert SVG coordinates → PDF points
+    double px(double x) => x * pageW / svgW;
+    double py(double y) => y * pageH / svgH;
+
+    // Parse date
+    DateTime? dt;
+    try { dt = DateTime.parse(invoice.date); } catch (_) {}
+    final day   = dt != null ? '${dt.day}'.padLeft(2, '0') : '__';
+    final month = dt != null ? '${dt.month}'.padLeft(2, '0') : '__';
+    final year  = dt != null ? '${dt.year}' : '____';
+
+    // pw.Positioned has no width/height — size via pw.SizedBox child
+    pw.Widget whiteBox(double x, double y, double w, double h) =>
+        pw.Positioned(
+          left: px(x), top: py(y),
+          child: pw.SizedBox(
+            width: px(w), height: py(h),
+            child: pw.Container(color: PdfColors.white),
+          ),
+        );
+
+    pw.Widget positioned(double x, double y, double w, pw.Widget child) =>
+        pw.Positioned(
+          left: px(x), top: py(y),
+          child: pw.SizedBox(width: px(w), child: child),
+        );
+
+    // Table row data widgets
+    const rowYs = [237.0, 265.0, 293.0, 321.0, 349.0];
+    final rowWidgets = <pw.Widget>[];
+    for (int i = 0; i < invoice.items.length && i < rowYs.length; i++) {
+      final item = invoice.items[i];
+      final bt   = brickTypes.where((b) => b.id == item.brickTypeId).firstOrNull;
+      rowWidgets.add(pw.Positioned(
+        left: px(24), top: py(rowYs[i]),
+        child: pw.SizedBox(
+          width: px(372), height: py(28),
+          child: pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              // Nº (w=30)
+              pw.SizedBox(
+                width: px(30),
+                child: pw.Center(
+                  child: pw.Text('${i + 1}',
+                      style: pw.TextStyle(fontSize: 9, color: _ink)),
+                ),
+              ),
+              // Product (w=122)
+              pw.SizedBox(
+                width: px(122),
+                child: pw.Padding(
+                  padding: const pw.EdgeInsets.only(left: 4),
+                  child: pw.Text(bt?.name ?? '—',
+                      style: pw.TextStyle(fontSize: 9, color: _ink)),
+                ),
+              ),
+              // QTY (w=76)
+              pw.SizedBox(
+                width: px(76),
+                child: pw.Padding(
+                  padding: const pw.EdgeInsets.only(right: 4),
+                  child: pw.Text(_intFmt.format(item.quantity),
+                      style: pw.TextStyle(fontSize: 9, color: _ink),
+                      textAlign: pw.TextAlign.right),
+                ),
+              ),
+              // U.P (w=67)
+              pw.SizedBox(
+                width: px(67),
+                child: pw.Padding(
+                  padding: const pw.EdgeInsets.only(right: 4),
+                  child: pw.Text('$sym${_fmt.format(item.unitPrice)}',
+                      style: pw.TextStyle(fontSize: 9, color: _ink),
+                      textAlign: pw.TextAlign.right),
+                ),
+              ),
+              // Amount (w=77)
+              pw.Expanded(
+                child: pw.Padding(
+                  padding: const pw.EdgeInsets.only(right: 4),
+                  child: pw.Text('$sym${_fmt.format(item.total)}',
+                      style: pw.TextStyle(
+                          fontSize: 9,
+                          fontWeight: pw.FontWeight.bold,
+                          color: _ink),
+                      textAlign: pw.TextAlign.right),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ));
+    }
+
+    return pw.Stack(
+      children: [
+        // ── SVG template (full-page background) ──────────────────────────
+        if (svgStr != null)
+          pw.Positioned.fill(
+            child: pw.SvgImage(svg: svgStr),
+          ),
+
+        // ── Logo PNG (replaces the SVG logo) ────────────────────────────
+        if (logo != null)
+          pw.Positioned(
+            left: px(24.4), top: py(14.6),
+            child: pw.SizedBox(
+              width: px(69.3), height: py(46.2),
+              child: pw.Image(logo, fit: pw.BoxFit.contain),
+            ),
+          ),
+
+        // ── Company name ─────────────────────────────────────────────────
+        whiteBox(100, 3, 215, 68),
+        positioned(100, 10, 215,
+          pw.Text(settings.companyName,
+              style: pw.TextStyle(
+                  fontSize: 14, fontWeight: pw.FontWeight.bold, color: _ink),
+              textAlign: pw.TextAlign.center),
+        ),
+        positioned(100, 42, 215,
+          pw.Text('Produce, Selling, Transportation',
+              style: pw.TextStyle(fontSize: 7, color: _muted),
+              textAlign: pw.TextAlign.center),
+        ),
+
+        // ── Phone ────────────────────────────────────────────────────────
+        whiteBox(25, 76, 152, 34),
+        if (settings.phone.isNotEmpty)
+          pw.Positioned(
+            left: px(45), top: py(82),
+            child: pw.Text(settings.phone,
+                style: pw.TextStyle(fontSize: 9, color: _ink)),
+          ),
+
+        // ── Invoice No ───────────────────────────────────────────────────
+        whiteBox(288, 78, 108, 16),
+        pw.Positioned(
+          left: px(290), top: py(81),
+          child: pw.Row(mainAxisSize: pw.MainAxisSize.min, children: [
+            pw.Text('No  ', style: pw.TextStyle(fontSize: 9, color: _ink)),
+            pw.Text(invoice.number,
+                style: pw.TextStyle(
+                    fontSize: 9,
+                    fontWeight: pw.FontWeight.bold,
+                    color: _invRed)),
+          ]),
+        ),
+
+        // ── Date ─────────────────────────────────────────────────────────
+        whiteBox(243, 96, 153, 16),
+        pw.Positioned(
+          left: px(244), top: py(98),
+          child: pw.Text('ថ្ងៃទី $day  ខែ $month  ឆ្នាំ $year',
+              style: pw.TextStyle(fontSize: 8, color: _ink)),
+        ),
+
+        // ── Seller box content ───────────────────────────────────────────
+        whiteBox(27, 126, 177, 52),
+        positioned(30, 128, 172,
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(settings.companyName,
+                  style: pw.TextStyle(fontSize: 8, color: _ink)),
+              if (settings.address.isNotEmpty)
+                pw.Text(settings.address,
+                    style: pw.TextStyle(fontSize: 7, color: _muted)),
+              if (settings.phone.isNotEmpty)
+                pw.Text(settings.phone,
+                    style: pw.TextStyle(fontSize: 7, color: _muted)),
+            ],
+          ),
+        ),
+
+        // ── Buyer box content ────────────────────────────────────────────
+        whiteBox(230, 126, 164, 52),
+        positioned(233, 128, 159,
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              if (client != null) ...[
+                pw.Text(client.name,
+                    style: pw.TextStyle(fontSize: 8, color: _ink)),
+                if (client.phone.isNotEmpty)
+                  pw.Text(client.phone,
+                      style: pw.TextStyle(fontSize: 7, color: _muted)),
+                if (client.address.isNotEmpty)
+                  pw.Text(client.address,
+                      style: pw.TextStyle(fontSize: 7, color: _muted)),
+              ] else
+                pw.Text('—', style: pw.TextStyle(fontSize: 8, color: _muted)),
+            ],
+          ),
+        ),
+
+        // ── White cover over all table data rows ─────────────────────────
+        whiteBox(24, 237, 372, 140),
+
+        // ── Table row data ───────────────────────────────────────────────
+        ...rowWidgets,
+
+        // ── Total amount value ───────────────────────────────────────────
+        whiteBox(319, 377, 77, 32),
+        positioned(319, 381, 74,
+          pw.Text('$sym${_fmt.format(invoice.total)}',
+              style: pw.TextStyle(
+                  fontSize: 10, fontWeight: pw.FontWeight.bold, color: _ink),
+              textAlign: pw.TextAlign.right),
+        ),
+      ],
+    );
   }
 
   // ── Batch / filtered export ────────────────────────────────────────────────
@@ -196,224 +471,6 @@ class PdfService {
         ],
       ),
     ];
-  }
-
-  // ── Individual invoice page layout ────────────────────────────────────────
-  static pw.Widget _buildInvoicePage({
-    required Invoice invoice,
-    required Client? client,
-    required List<BrickType> brickTypes,
-    required AppSettings settings,
-  }) {
-    final sym = settings.currencySymbol;
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-      children: [
-        // ── Header bar ──────────────────────────────────────────────────
-        pw.Container(
-          padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: const pw.BoxDecoration(
-            color: _forest,
-            borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
-          ),
-          child: pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: pw.CrossAxisAlignment.center,
-            children: [
-              pw.Text(settings.companyName,
-                  style: pw.TextStyle(
-                      color: PdfColors.white,
-                      fontSize: 18,
-                      fontWeight: pw.FontWeight.bold)),
-              pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.end,
-                children: [
-                  pw.Text('INVOICE',
-                      style: pw.TextStyle(
-                          color: PdfColors.white,
-                          fontSize: 11,
-                          fontWeight: pw.FontWeight.bold,
-                          letterSpacing: 2)),
-                  pw.SizedBox(height: 2),
-                  pw.Text(invoice.number,
-                      style: pw.TextStyle(
-                          color: PdfColors.white,
-                          fontSize: 10,
-                          fontWeight: pw.FontWeight.bold)),
-                  pw.Text(_formatDate(invoice.date),
-                      style: const pw.TextStyle(
-                          color: PdfColors.white, fontSize: 8)),
-                ],
-              ),
-            ],
-          ),
-        ),
-        pw.SizedBox(height: 14),
-
-        // ── Client + Invoice meta ─────────────────────────────────────
-        pw.Row(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            // Client
-            pw.Expanded(
-              child: pw.Container(
-                padding: const pw.EdgeInsets.all(10),
-                decoration: pw.BoxDecoration(
-                  color: _pale,
-                  border: pw.Border.all(color: _border),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text('CLIENT',
-                        style: pw.TextStyle(
-                            fontSize: 7,
-                            color: _grey,
-                            fontWeight: pw.FontWeight.bold,
-                            letterSpacing: 1)),
-                    pw.SizedBox(height: 4),
-                    pw.Text(client?.name ?? '—',
-                        style: pw.TextStyle(
-                            fontSize: 12, fontWeight: pw.FontWeight.bold)),
-                    if (client?.phone.isNotEmpty ?? false)
-                      pw.Text(client!.phone,
-                          style: const pw.TextStyle(fontSize: 9, color: _grey)),
-                  ],
-                ),
-              ),
-            ),
-            pw.SizedBox(width: 10),
-            // Invoice meta
-            pw.Container(
-              width: 160,
-              padding: const pw.EdgeInsets.all(10),
-              decoration: pw.BoxDecoration(
-                color: _pale,
-                border: pw.Border.all(color: _border),
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('INVOICE DETAILS',
-                      style: pw.TextStyle(
-                          fontSize: 7,
-                          color: _grey,
-                          fontWeight: pw.FontWeight.bold,
-                          letterSpacing: 1)),
-                  pw.SizedBox(height: 4),
-                  _infoRow('Invoice #:', invoice.number),
-                  _infoRow('Date:', _formatDate(invoice.date)),
-                ],
-              ),
-            ),
-          ],
-        ),
-        pw.SizedBox(height: 16),
-
-        // ── Items table ───────────────────────────────────────────────
-        _brickTable(invoice, brickTypes, settings),
-        pw.SizedBox(height: 10),
-
-        // ── Total ─────────────────────────────────────────────────────
-        pw.Align(
-          alignment: pw.Alignment.centerRight,
-          child: pw.Container(
-            width: 180,
-            padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: const pw.BoxDecoration(
-              color: _forest,
-              borderRadius: pw.BorderRadius.all(pw.Radius.circular(5)),
-            ),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('TOTAL',
-                    style: pw.TextStyle(
-                        color: PdfColors.white,
-                        fontSize: 10,
-                        fontWeight: pw.FontWeight.bold)),
-                pw.Text('$sym${_fmt.format(invoice.total)}',
-                    style: pw.TextStyle(
-                        color: PdfColors.white,
-                        fontSize: 14,
-                        fontWeight: pw.FontWeight.bold)),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ── Items table (shared by individual invoice) ────────────────────────────
-  static pw.Widget _brickTable(Invoice invoice, List<BrickType> brickTypes, AppSettings s) {
-    final sym = s.currencySymbol;
-
-    final rows = invoice.items.map((item) {
-      final bt = brickTypes.where((b) => b.id == item.brickTypeId).firstOrNull;
-      return [
-        bt?.name ?? 'Brick',
-        _intFmt.format(item.quantity),
-        '$sym${_fmt.format(item.unitPrice)}',
-        '$sym${_fmt.format(item.total)}',
-      ];
-    }).toList();
-
-    return pw.Table(
-      border: const pw.TableBorder(
-        top: pw.BorderSide(color: _forest, width: 2),
-        bottom: pw.BorderSide(color: _border),
-        horizontalInside: pw.BorderSide(color: _border, width: 0.5),
-      ),
-      columnWidths: const {
-        0: pw.FlexColumnWidth(3),
-        1: pw.FixedColumnWidth(70),
-        2: pw.FixedColumnWidth(70),
-        3: pw.FixedColumnWidth(70),
-      },
-      children: [
-        pw.TableRow(
-          decoration: const pw.BoxDecoration(color: _forest),
-          children: ['Brick Type', 'Qty', 'Unit Price', 'Total']
-              .map((h) => pw.Padding(
-                    padding: const pw.EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 7),
-                    child: pw.Text(h,
-                        style: pw.TextStyle(
-                            color: PdfColors.white,
-                            fontSize: 8,
-                            fontWeight: pw.FontWeight.bold)),
-                  ))
-              .toList(),
-        ),
-        ...rows.asMap().entries.map((entry) {
-          final isEven = entry.key.isEven;
-          return pw.TableRow(
-            decoration: pw.BoxDecoration(color: isEven ? PdfColors.white : _pale),
-            children: entry.value.asMap().entries.map((cell) {
-              final alignRight = cell.key >= 1;
-              final isTotalCol = cell.key == 3;
-              return pw.Padding(
-                padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-                child: pw.Text(
-                  cell.value,
-                  style: pw.TextStyle(
-                    fontSize: 9,
-                    color: isTotalCol ? _forest : _slate,
-                    fontWeight: isTotalCol
-                        ? pw.FontWeight.bold
-                        : pw.FontWeight.normal,
-                  ),
-                  textAlign: alignRight ? pw.TextAlign.right : pw.TextAlign.left,
-                ),
-              );
-            }).toList(),
-          );
-        }),
-      ],
-    );
   }
 
   // ── Batch: per-page header ─────────────────────────────────────────────────
@@ -590,23 +647,7 @@ class PdfService {
     );
   }
 
-  static pw.Widget _infoRow(String label, String value) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.only(top: 3),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.SizedBox(
-            width: 58,
-            child: pw.Text(label, style: const pw.TextStyle(fontSize: 9, color: _grey)),
-          ),
-          pw.Expanded(
-            child: pw.Text(value, style: const pw.TextStyle(fontSize: 9)),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   static String _formatDate(String iso) {
     try {

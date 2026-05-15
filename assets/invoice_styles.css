@@ -1,0 +1,534 @@
+/*
+ * Invoice CSS — Panha Brick Factory
+ * Canvas: 559 × 794 px  (A5 at 96 dpi — all values scaled from original 420×595 Figma)
+ *
+ * Fonts used:
+ *   Kantumruy Pro  — Khmer body text
+ *   Montserrat     — Latin / numeric text
+ *   Cormorant Garamond — Company name (Latin)
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@300;400;500;600;700&family=Montserrat:ital,wght@0,300;0,400;0,600;1,300&family=Cormorant+Garamond:wght@700&family=Moul&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #d8d8d8; display: flex; justify-content: center; padding: 20px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   PAGE  —  A5 at 96 dpi
+   width: 559px  height: 794px
+   ═══════════════════════════════════════════════════════════════ */
+.page {
+  position: relative;
+  width: 559px;
+  height: 794px;
+  background: #ffffff;
+  overflow: hidden;
+  flex-shrink: 0;
+  font-family: 'Kantumruy Pro', 'Montserrat', sans-serif;
+  color: #0A0A0A;
+}
+
+/* ───────────────────────────────────────────────────────────────
+   LOGO
+   ─────────────────────────────────────────────────────────────── */
+.logo {
+  position: absolute;
+  left: 32px;
+  top: 20px;
+  width: 93px;
+  height: 61px;
+  object-fit: contain;
+}
+
+/* ───────────────────────────────────────────────────────────────
+   COMPANY NAME BLOCK
+   ─────────────────────────────────────────────────────────────── */
+.company-block {
+  position: absolute;
+  left: 133px;
+  top: 16px;
+  width: 293px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.company-kh {
+  font-family: 'Moul', 'Khmer OS Muol', sans-serif;
+  font-weight: 400;
+  font-size: 21px;
+  line-height: 29px;
+  color: #0A0A0A;
+  text-align: center;
+}
+.company-en {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 16px;
+  color: #0A0A0A;
+  text-align: center;
+}
+.company-cn {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 16px;
+  color: #0A0A0A;
+  text-align: center;
+}
+
+/* ───────────────────────────────────────────────────────────────
+   TAGLINE
+   ─────────────────────────────────────────────────────────────── */
+.tagline {
+  position: absolute;
+  left: 133px;
+  top: 88px;
+  width: 293px;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+}
+.tagline-kh, .tagline-en {
+  font-size: 5px;
+  color: #0A0A0A;
+}
+.tagline-kh { font-family: 'Kantumruy Pro', sans-serif; font-weight: 400; }
+.tagline-en { font-family: 'Montserrat', sans-serif; font-weight: 300; }
+
+/* ───────────────────────────────────────────────────────────────
+   TOP-RIGHT STAMP PLACEHOLDER
+   ─────────────────────────────────────────────────────────────── */
+.top-right-box {
+  position: absolute;
+  left: 474px;
+  top: 20px;
+  width: 53px;
+  height: 53px;
+  object-fit: contain;
+}
+
+/* ───────────────────────────────────────────────────────────────
+   TELEGRAM LABEL
+   ─────────────────────────────────────────────────────────────── */
+.telegram-label {
+  position: absolute;
+  left: 474px;
+  top: 76px;
+  width: 53px;
+  text-align: center;
+  font-family: 'Kantumruy Pro', sans-serif;
+  font-weight: 300;
+  font-size: 11px;
+  line-height: 12px;
+  color: #0A0A0A;
+}
+
+/* ───────────────────────────────────────────────────────────────
+   DIVIDER LINES
+   ─────────────────────────────────────────────────────────────── */
+.line-1, .line-2 {
+  position: absolute;
+  left: 32px;
+  width: 495px;
+  height: 0;
+  border-top: 0.2px solid rgba(10, 10, 10, 0.7);
+}
+.line-1 { top: 100px; }
+.line-2 { top: 646px; }
+
+/* ───────────────────────────────────────────────────────────────
+   PHONE SECTION
+   ─────────────────────────────────────────────────────────────── */
+.phone-section {
+  position: absolute;
+  left: 32px;
+  top: 110px;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 5px;
+}
+.phone-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.phone-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.phone-lines span {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 300;
+  font-size: 13px;
+  line-height: 17px;
+  color: #0A0A0A;
+  display: block;
+  white-space: nowrap;
+}
+
+/* ───────────────────────────────────────────────────────────────
+   INVOICE REF
+   ─────────────────────────────────────────────────────────────── */
+.invoice-ref {
+  position: absolute;
+  left: 387px;
+  top: 110px;
+  width: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ref-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 11px;
+  width: 140px;
+}
+.ref-label {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 16px;
+  color: #0A0A0A;
+}
+.ref-number {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 16px;
+  color: #BC0000;
+  text-decoration: underline;
+  flex: 1;
+  text-align: right;
+}
+.ref-date {
+  font-family: 'Kantumruy Pro', sans-serif;
+  font-weight: 300;
+  font-size: 13px;
+  line-height: 16px;
+  color: #0A0A0A;
+  width: 140px;
+}
+
+/* ───────────────────────────────────────────────────────────────
+   SELLER BOX  /  BUYER BOX
+   ─────────────────────────────────────────────────────────────── */
+.seller-box, .buyer-box {
+  position: absolute;
+  top: 157px;
+  border: 0.5px solid rgba(10, 10, 10, 0.2);
+  padding: 7px;
+  display: flex;
+  flex-direction: column;
+}
+.seller-box { left: 32px;  width: 244px; height: 87px; gap: 7px; }
+.buyer-box  { left: 302px; width: 225px; height: 88px; gap: 11px; }
+
+.box-label {
+  font-family: 'Kantumruy Pro', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 16px;
+  color: #0A0A0A;
+}
+.box-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.seller-name-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 3px;
+}
+.name-kh, .name-en {
+  font-family: 'Kantumruy Pro', sans-serif;
+  font-weight: 300;
+  font-size: 13px;
+  line-height: 16px;
+  color: #0A0A0A;
+}
+.name-en { font-family: 'Montserrat', sans-serif; }
+
+.box-address {
+  font-family: 'Kantumruy Pro', sans-serif;
+  font-weight: 300;
+  font-size: 13px;
+  line-height: 16px;
+  color: #0A0A0A;
+}
+.buyer-field {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 3px;
+}
+.field-label {
+  font-family: 'Kantumruy Pro', sans-serif;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 19px;
+  color: #0A0A0A;
+  white-space: nowrap;
+}
+.field-colon {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  color: #0A0A0A;
+}
+.field-value {
+  font-family: 'Kantumruy Pro', sans-serif;
+  font-weight: 300;
+  font-size: 13px;
+  line-height: 19px;
+  color: #0A0A0A;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   INVOICE TABLE  (left:32 top:256 width:495)
+   ═══════════════════════════════════════════════════════════════ */
+.invoice-table {
+  position: absolute;
+  left: 32px;
+  top: 256px;
+  width: 495px;
+  border-collapse: collapse;
+  border: 1px solid #616D68;
+  table-layout: fixed;
+}
+
+/* Column widths: 40 + 163 + 101 + 89 + 102 = 495px */
+.col-no      { width: 40px; }
+.col-product { width: 163px; }
+.col-qty     { width: 101px; }
+.col-up      { width: 89px; }
+.col-amount  { width: 102px; }
+
+/* ── Header row ─────────────────────────────────────────────── */
+.invoice-table thead tr { height: 59px; }
+.invoice-table thead th {
+  height: 59px;
+  border-left: 1px solid #616D68;
+  vertical-align: middle;
+  text-align: center;
+  padding: 0 5px;
+  background: rgba(255, 255, 255, 0.002);
+}
+.invoice-table thead th:first-child { border-left: none; }
+
+.th-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+.th-kh {
+  font-family: 'Kantumruy Pro', sans-serif;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 16px;
+  color: #0A0A0A;
+}
+.th-en {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 16px;
+  color: #0A0A0A;
+}
+
+/* ── Data rows ──────────────────────────────────────────────── */
+.invoice-table tbody tr { height: 37px; }
+.invoice-table tbody td {
+  min-height: 37px;
+  border-top: 1px solid #616D68;
+  border-left: 1px solid #616D68;
+  background: rgba(255, 255, 255, 0.002);
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 16px;
+  color: #0A0A0A;
+  vertical-align: middle;
+  text-align: center;
+  padding: 3px 5px;
+}
+.invoice-table tbody td:first-child { border-left: 1px solid #616D68; }
+
+/* ── Category header row ──────────────────────────────────────── */
+.cat-row td.td-cat {
+  text-align: left;
+  padding: 0 11px;
+  font-family: 'Kantumruy Pro', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 16px;
+  color: #0A0A0A;
+  border-left: none;
+}
+
+.invoice-table tbody td.td-product {
+  text-align: left;
+  padding: 0 8px;
+}
+.td-product-kh {
+  font-family: 'Kantumruy Pro', sans-serif;
+}
+
+/* Abbreviation floated right in the product cell */
+.product-abbr {
+  float: right;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 16px;
+  color: #0A0A0A;
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   STAMPS  (left:45 top:521)
+   ═══════════════════════════════════════════════════════════════ */
+.stamps-area {
+  position: absolute;
+  left: 45px;
+  top: 521px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
+.stamp-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 80px;
+}
+.stamp-qr {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.stamp-label {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 16px;
+  color: #0A0A0A;
+  text-align: center;
+  width: 80px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TOTALS  (left:234 top:502 width:293)
+   ═══════════════════════════════════════════════════════════════ */
+.totals-area {
+  position: absolute;
+  left: 234px;
+  top: 502px;
+  width: 293px;
+}
+
+.tr-block {
+  display: flex;
+  flex-direction: row;
+  width: 293px;
+  height: 43px;
+}
+.tr-label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 190px;
+  height: 43px;
+  padding: 0 16px;
+  background: rgba(255, 255, 255, 0.002);
+}
+.tr-amount {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 103px;
+  height: 43px;
+  background: rgba(255, 255, 255, 0.002);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  color: #0A0A0A;
+}
+.tr-label .kh {
+  font-family: 'Kantumruy Pro', sans-serif;
+  font-size: 13px;
+  color: #0A0A0A;
+}
+.tr-label .en {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  color: #0A0A0A;
+}
+
+/* Row 1 (Total): bold, left+right borders on amount */
+.tr-1 .tr-label { border-left: 1px solid #616D68; }
+.tr-1 .tr-label .kh, .tr-1 .tr-label .en { font-weight: 600; }
+.tr-1 .tr-amount { border-left: 1px solid #616D68; border-right: 1px solid #616D68; }
+
+/* Row 2 (Deposit) */
+.tr-2 .tr-label  { border-top: 1px solid #616D68; border-left: 1px solid #616D68; }
+.tr-2 .tr-amount { border-top: 1px solid #616D68; border-left: 1px solid #616D68; border-right: 1px solid #616D68; }
+
+/* Row 3 (Balance) */
+.tr-3 .tr-label  { border-top: 1px solid #616D68; border-left: 1px solid #616D68; border-bottom: 1px solid #616D68; }
+.tr-3 .tr-amount { border: 1px solid #616D68; }
+
+/* ═══════════════════════════════════════════════════════════════
+   SIGNATURES  (left:32 top:659 width:495 height:107)
+   ═══════════════════════════════════════════════════════════════ */
+.signatures-area {
+  position: absolute;
+  left: 32px;
+  top: 659px;
+  width: 495px;
+  height: 107px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+.sig-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  width: 120px;
+  height: 107px;
+}
+.sig-title {
+  font-family: 'Kantumruy Pro', sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 19px;
+  color: #0A0A0A;
+  text-align: center;
+  width: 120px;
+}
+.sig-line {
+  width: 120px;
+  height: 0;
+  border-bottom: 0.5px dashed rgba(10, 10, 10, 0.6);
+}

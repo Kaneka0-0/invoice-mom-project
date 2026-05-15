@@ -31,16 +31,297 @@
 
   <title>panha_invoice</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- html2pdf: HTML → PDF download (includes html2canvas + jsPDF) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script>
+    // Generate and download the PDF (called directly or from the preview overlay).
+    async function generateInvoicePdf(htmlContent, filename) {
+      var wrap = document.createElement('div');
+      wrap.style.cssText = 'position:absolute;left:-9999px;top:0;width:559px;';
+      wrap.innerHTML = htmlContent;
+      document.body.appendChild(wrap);
+      var page = wrap.querySelector('.page') || wrap;
+      await document.fonts.ready;
+      var opt = {
+        margin: 0,
+        filename: filename,
+        image: { type: 'png' },
+        html2canvas: { scale: 4, useCORS: true, allowTaint: false, letterRendering: true },
+        jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' }
+      };
+      try { await html2pdf().set(opt).from(page).save(); }
+      finally { document.body.removeChild(wrap); }
+    }
+
+    // Inject a viewport meta inside the rendered HTML so pinch-zoom works
+    // on touch devices when previewing the PDF inside an iframe.
+    function _injectViewport(html, pageW) {
+      if (/<meta[^>]+name=["']?viewport["']?/i.test(html)) return html;
+      var meta = '<meta name="viewport" content="width=' + pageW +
+        ', initial-scale=1, user-scalable=yes">';
+      if (html.indexOf('<head>') !== -1) {
+        return html.replace('<head>', '<head>' + meta);
+      }
+      return meta + html;
+    }
+
+    // Build the dark overlay container shared by preview functions.
+    function _makePreviewOverlay() {
+      var overlay = document.createElement('div');
+      overlay.style.cssText = [
+        'position:fixed;inset:0;',
+        'background:rgba(0,0,0,0.78);',
+        'z-index:99999;',
+        'display:flex;flex-direction:column;',
+        'align-items:center;',
+        'gap:10px;',
+        'overflow:auto;padding:16px 12px;',
+        '-webkit-overflow-scrolling:touch;'
+      ].join('');
+      return overlay;
+    }
+
+    // Called from Dart. Shows a preview overlay with Download, Edit, and Close buttons.
+    // editPath: optional string (e.g. '/invoices/abc/edit') — if provided an Edit button is shown.
+    function previewInvoicePdf(htmlContent, filename, editPath) {
+      var pageW = 559;
+      var pageH = 794;
+
+      // Compute scale to fit within available viewport width
+      var availW = Math.max(240, Math.min(window.innerWidth - 24, pageW));
+      var scale = Math.min(1, availW / pageW);
+      var scaledW = pageW * scale;
+      var scaledH = pageH * scale;
+
+      var overlay = _makePreviewOverlay();
+
+      // Toolbar above the preview
+      var bar = document.createElement('div');
+      bar.style.cssText = [
+        'display:flex;align-items:center;justify-content:space-between;',
+        'width:' + scaledW + 'px;max-width:100%;',
+        'gap:8px;flex-wrap:wrap;flex-shrink:0;'
+      ].join('');
+
+      var lbl = document.createElement('span');
+      lbl.style.cssText = [
+        'color:#fff;font:600 13px/1.2 sans-serif;letter-spacing:0.02em;',
+        'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
+        'min-width:0;flex:1;'
+      ].join('');
+      lbl.textContent = filename;
+
+      var btns = document.createElement('div');
+      btns.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
+
+      var dlBtn = document.createElement('button');
+      dlBtn.innerHTML = '&#8659;&nbsp;Download PDF';
+      dlBtn.style.cssText = [
+        'background:#2e7d32;color:#fff;border:none;',
+        'border-radius:6px;padding:7px 16px;',
+        'font:600 12px sans-serif;cursor:pointer;',
+        'transition:opacity 0.15s;'
+      ].join('');
+
+      if (editPath) {
+        var editBtn = document.createElement('button');
+        editBtn.innerHTML = '&#9998;&nbsp;Edit';
+        editBtn.style.cssText = [
+          'background:rgba(255,255,255,0.18);color:#fff;border:none;',
+          'border-radius:6px;padding:7px 14px;',
+          'font:600 12px sans-serif;cursor:pointer;'
+        ].join('');
+        editBtn.addEventListener('click', function() {
+          close();
+          if (window._panhaNavigate) {
+            window._panhaNavigate(editPath);
+          } else {
+            window.location.href = editPath;
+          }
+        });
+        btns.append(editBtn);
+      }
+
+      var closeBtn = document.createElement('button');
+      closeBtn.textContent = '✕ Close';
+      closeBtn.style.cssText = [
+        'background:rgba(255,255,255,0.18);color:#fff;border:none;',
+        'border-radius:6px;padding:7px 14px;',
+        'font:13px sans-serif;cursor:pointer;'
+      ].join('');
+
+      btns.append(dlBtn, closeBtn);
+      bar.append(lbl, btns);
+
+      // Wrapper holds the scaled-down visual size; iframe inside renders at full
+      // page width, then is transformed to fit. Browser pinch-zoom inside iframe
+      // is enabled via injected <meta name="viewport">.
+      var wrap = document.createElement('div');
+      wrap.style.cssText = [
+        'width:' + scaledW + 'px;height:' + scaledH + 'px;',
+        'position:relative;flex-shrink:0;overflow:hidden;',
+        'border-radius:2px;background:#fff;',
+        'box-shadow:0 8px 48px rgba(0,0,0,0.55);',
+        'max-width:100%;'
+      ].join('');
+
+      var frame = document.createElement('iframe');
+      frame.style.cssText = [
+        'width:' + pageW + 'px;height:' + pageH + 'px;border:none;',
+        'transform:scale(' + scale + ');transform-origin:top left;',
+        'background:#fff;display:block;'
+      ].join('');
+      frame.srcdoc = _injectViewport(htmlContent, pageW);
+
+      wrap.appendChild(frame);
+      overlay.append(bar, wrap);
+      document.body.appendChild(overlay);
+
+      // Close helpers
+      function close() {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      }
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) close(); });
+      closeBtn.addEventListener('click', close);
+      document.addEventListener('keydown', function onEsc(e) {
+        if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onEsc); }
+      });
+
+      // Download button triggers PDF generation
+      dlBtn.addEventListener('click', async function() {
+        dlBtn.disabled = true;
+        dlBtn.textContent = 'Generating…';
+        try { await generateInvoicePdf(htmlContent, filename); }
+        finally { dlBtn.disabled = false; dlBtn.innerHTML = '&#8659;&nbsp;Download PDF'; }
+      });
+    }
+
+    // Generate and download an A4 PDF (used for the monthly invoice).
+    // Supports multi-page: if htmlContent contains multiple .page divs each is
+    // a separate PDF page (page-break-after:always handles the split).
+    async function generateA4Pdf(htmlContent, filename) {
+      var wrap = document.createElement('div');
+      wrap.style.cssText = 'position:absolute;left:-9999px;top:0;width:595px;';
+      wrap.innerHTML = htmlContent;
+      document.body.appendChild(wrap);
+      var pages = wrap.querySelectorAll('.page');
+      var content = pages.length > 1 ? wrap : (pages[0] || wrap);
+      await document.fonts.ready;
+      var opt = {
+        margin: 0,
+        filename: filename,
+        image: { type: 'png' },
+        html2canvas: { scale: 4, useCORS: true, allowTaint: false, letterRendering: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'] }
+      };
+      try { await html2pdf().set(opt).from(content).save(); }
+      finally { document.body.removeChild(wrap); }
+    }
+
+    // Called from Dart. Shows a preview overlay for the monthly invoice (A4).
+    function previewMonthlyInvoicePdf(htmlContent, filename) {
+      var pageW = 595;
+      var pageH = 862;
+
+      // Count pages to size the iframe correctly
+      var tmp = document.createElement('div');
+      tmp.innerHTML = htmlContent;
+      var pageCount = Math.max(1, tmp.querySelectorAll('.page').length);
+      var rawH = pageCount * pageH + (pageCount - 1) * 20;
+
+      // Compute scale to fit within available viewport width
+      var availW = Math.max(240, Math.min(window.innerWidth - 24, pageW));
+      var scale = Math.min(1, availW / pageW);
+      var scaledW = pageW * scale;
+      var scaledH = rawH * scale;
+
+      var overlay = _makePreviewOverlay();
+
+      // Toolbar above the preview
+      var bar = document.createElement('div');
+      bar.style.cssText = [
+        'display:flex;align-items:center;justify-content:space-between;',
+        'width:' + scaledW + 'px;max-width:100%;',
+        'gap:8px;flex-wrap:wrap;flex-shrink:0;'
+      ].join('');
+
+      var lbl = document.createElement('span');
+      lbl.style.cssText = [
+        'color:#fff;font:600 13px/1.2 sans-serif;letter-spacing:0.02em;',
+        'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
+        'min-width:0;flex:1;'
+      ].join('');
+      lbl.textContent = filename;
+
+      var btns = document.createElement('div');
+      btns.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
+
+      var dlBtn = document.createElement('button');
+      dlBtn.innerHTML = '&#8659;&nbsp;Download PDF';
+      dlBtn.style.cssText = [
+        'background:#2e7d32;color:#fff;border:none;',
+        'border-radius:6px;padding:7px 16px;',
+        'font:600 12px sans-serif;cursor:pointer;',
+        'transition:opacity 0.15s;'
+      ].join('');
+
+      var closeBtn = document.createElement('button');
+      closeBtn.textContent = '✕ Close';
+      closeBtn.style.cssText = [
+        'background:rgba(255,255,255,0.18);color:#fff;border:none;',
+        'border-radius:6px;padding:7px 14px;',
+        'font:13px sans-serif;cursor:pointer;'
+      ].join('');
+
+      btns.append(dlBtn, closeBtn);
+      bar.append(lbl, btns);
+
+      // Wrapper holds the scaled visual size; iframe renders at native width
+      // and is transformed to fit. Pinch-zoom enabled inside via viewport meta.
+      var wrap = document.createElement('div');
+      wrap.style.cssText = [
+        'width:' + scaledW + 'px;height:' + scaledH + 'px;',
+        'position:relative;flex-shrink:0;overflow:hidden;',
+        'border-radius:2px;background:#fff;',
+        'box-shadow:0 8px 48px rgba(0,0,0,0.55);',
+        'max-width:100%;'
+      ].join('');
+
+      var frame = document.createElement('iframe');
+      frame.style.cssText = [
+        'width:' + pageW + 'px;height:' + rawH + 'px;border:none;',
+        'transform:scale(' + scale + ');transform-origin:top left;',
+        'background:#fff;display:block;'
+      ].join('');
+      frame.srcdoc = _injectViewport(htmlContent, pageW);
+
+      wrap.appendChild(frame);
+      overlay.append(bar, wrap);
+      document.body.appendChild(overlay);
+
+      // Close helpers
+      function close() {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      }
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) close(); });
+      closeBtn.addEventListener('click', close);
+      document.addEventListener('keydown', function onEsc(e) {
+        if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onEsc); }
+      });
+
+      // Download button triggers A4 PDF generation
+      dlBtn.addEventListener('click', async function() {
+        dlBtn.disabled = true;
+        dlBtn.textContent = 'Generating…';
+        try { await generateA4Pdf(htmlContent, filename); }
+        finally { dlBtn.disabled = false; dlBtn.innerHTML = '&#8659;&nbsp;Download PDF'; }
+      });
+    }
+  </script>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

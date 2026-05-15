@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+<meta charset="UTF-8">
+<style>
+/*
+ * Invoice Template — Panha Brick Factory
+ *
+ * SVG coordinate space : 420 × 595
+ * A4 page              : 210mm × 297mm
+ * Scale                : x * 0.5mm,  y * 0.4992mm
+ *
+ * To adjust layout, edit the left/top/width/height values on each element.
+ * All coordinates follow the SVG grid above.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;700&family=Inter:wght@400;600;700&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body { background: #e8e8e8; display: flex; justify-content: center; padding: 20px; }
+
+.page {
+  position: relative;
+  width: 210mm;
+  height: 297mm;
+  background: white;
+  background-image: url('{{SVG_DATA_URI}}');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  font-family: 'Noto Sans Khmer', 'Inter', sans-serif;
+  color: #0A0A0A;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* Utility classes */
+.cover {
+  position: absolute;
+  background: white;
+}
+.layer {
+  position: absolute;
+}
+
+/* ── Logo ───────────────────────────────────────────────── SVG: 24.4, 14.6, 69.3×46.2 */
+.logo-img {
+  position: absolute;
+  left: 12.21mm;
+  top: 7.29mm;
+  width: 34.65mm;
+  height: 23.09mm;
+  object-fit: contain;
+}
+
+/* ── Top-right placeholder ───────────────────────────── SVG: 356, 15, 40×40 */
+.topright-placeholder {
+  position: absolute;
+  left: 178mm;
+  top: 7.49mm;
+  width: 20mm;
+  height: 19.97mm;
+  background: #818181;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 6px;
+  text-align: center;
+}
+
+/* ── Company name ─────────────────────────────────────── SVG: 100, 3, 215×68 */
+.company-cover   { left: 50mm; top: 1.5mm; width: 107.5mm; height: 33.95mm; }
+.company-name    { left: 50mm; top: 5mm;   width: 107.5mm; text-align: center; font-size: 14px; font-weight: 700; }
+.company-tagline { left: 50mm; top: 20.9mm; width: 107.5mm; text-align: center; font-size: 7px; color: #616D68; }
+
+/* ── Phone ────────────────────────────────────────────── SVG: 25, 76, 152×34 */
+.phone-cover { left: 12.5mm; top: 37.94mm; width: 76mm; height: 16.97mm; }
+.phone-text  { left: 22.5mm; top: 40.93mm; font-size: 9px; }
+
+/* ── Invoice number ───────────────────────────────────── SVG: 288, 78, 108×16 */
+.invno-cover { left: 144mm; top: 38.94mm; width: 54mm; height: 7.99mm; }
+.invno-text  { left: 145mm; top: 40.43mm; font-size: 9px; white-space: nowrap; }
+.invno-num   { font-weight: 700; color: #BC0000; }
+
+/* ── Date ─────────────────────────────────────────────── SVG: 243, 96, 153×16 */
+.date-cover { left: 121.5mm; top: 47.92mm; width: 76.5mm; height: 7.99mm; }
+.date-text  { left: 122mm; top: 48.91mm; font-size: 8px; }
+
+/* ── Seller box content ───────────────────────────────── SVG: 27, 126, 177×52 */
+.seller-cover { left: 13.5mm; top: 62.9mm; width: 88.5mm; height: 25.96mm; }
+.seller-data  { left: 15mm; top: 63.9mm; width: 86mm; font-size: 8px; line-height: 1.65; }
+
+/* ── Buyer box content ────────────────────────────────── SVG: 230, 126, 164×52 */
+.buyer-cover { left: 115mm; top: 62.9mm; width: 82mm; height: 25.96mm; }
+.buyer-data  { left: 116.5mm; top: 63.9mm; width: 79.5mm; font-size: 8px; line-height: 1.65; }
+
+/* ── Table rows white cover ───────────────────────────── SVG: 24, 237, 372×140 */
+.table-cover { left: 12mm; top: 118.3mm; width: 186mm; height: 69.9mm; }
+
+/* ── Table row (each item row) ───────────────────────── SVG row height: 28 (13.98mm) */
+.row {
+  position: absolute;
+  left: 12mm;
+  width: 186mm;
+  height: 13.98mm;
+  display: flex;
+  align-items: center;
+  font-size: 9px;
+}
+.row.even { background: rgba(0,0,0,0.02); }
+/* Column widths match SVG grid (in mm, multiplied by 0.5): */
+.col-no     { width: 15mm; text-align: center; }
+.col-prod   { width: 61mm; padding-left: 2mm; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.col-qty    { width: 38mm; text-align: right; padding-right: 2mm; }
+.col-up     { width: 33.5mm; text-align: right; padding-right: 2mm; }
+.col-amt    { flex: 1; text-align: right; padding-right: 2mm; font-weight: 600; }
+
+/* Row y-positions (SVG y → mm = y × 0.4992) */
+.row-1 { top: 118.31mm; } /* y=237 */
+.row-2 { top: 132.29mm; } /* y=265 */
+.row-3 { top: 146.27mm; } /* y=293 */
+.row-4 { top: 160.25mm; } /* y=321 */
+.row-5 { top: 174.23mm; } /* y=349 */
+
+/* ── Total amount column cover ────────────────────────── SVG: 319, 377, 77×96 */
+.total-cover { left: 159.5mm; top: 188.3mm; width: 38.5mm; height: 47.93mm; }
+
+/* Each total row (32 SVG units = 15.97mm tall) */
+.total-row {
+  position: absolute;
+  left: 159.5mm;
+  width: 38.5mm;
+  height: 15.97mm;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 2mm;
+  font-size: 9px;
+  color: #616D68;
+}
+.total-row-1 { top: 188.3mm; }  /* y=377 */
+.total-row-2 { top: 204.27mm; } /* y=409 */
+.total-row-3 { top: 220.24mm; font-size: 10px; font-weight: 700; color: #0A0A0A; } /* y=441 */
+
+/* ── Party name / label shared style */
+.party-name   { font-weight: 700; }
+.party-detail { font-size: 7px; color: #616D68; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Logo -->
+  <img class="logo-img" src="{{LOGO_DATA_URI}}" alt="">
+
+  <!-- Top-right placeholder (gray box — replace src when image is ready) -->
+  <div class="topright-placeholder">STAMP</div>
+
+  <!-- Company name (covers SVG sample) -->
+  <div class="cover company-cover"></div>
+  <div class="layer company-name">{{COMPANY_NAME}}</div>
+  <div class="layer company-tagline">Produce, Selling, Transportation</div>
+
+  <!-- Phone -->
+  <div class="cover phone-cover"></div>
+  <div class="layer phone-text">{{PHONE}}</div>
+
+  <!-- Invoice number -->
+  <div class="cover invno-cover"></div>
+  <div class="layer invno-text">No &nbsp;<span class="invno-num">{{INVOICE_NUMBER}}</span></div>
+
+  <!-- Date -->
+  <div class="cover date-cover"></div>
+  <div class="layer date-text">ថ្ងៃទី {{DAY}} ខែ {{MONTH}} ឆ្នាំ {{YEAR}}</div>
+
+  <!-- Seller info -->
+  <div class="cover seller-cover"></div>
+  <div class="layer seller-data">
+    <div class="party-name">{{SELLER_NAME}}</div>
+    <div class="party-detail">{{SELLER_ADDRESS}}</div>
+    <div class="party-detail">{{SELLER_PHONE}}</div>
+  </div>
+
+  <!-- Buyer info -->
+  <div class="cover buyer-cover"></div>
+  <div class="layer buyer-data">
+    <div class="party-name">{{BUYER_NAME}}</div>
+    <div class="party-detail">{{BUYER_PHONE}}</div>
+    <div class="party-detail">{{BUYER_ADDRESS}}</div>
+  </div>
+
+  <!-- Table rows (white cover + item rows injected by Dart) -->
+  <div class="cover table-cover"></div>
+  {{ITEM_ROWS}}
+
+  <!-- Total column (white cover + values injected by Dart) -->
+  <div class="cover total-cover"></div>
+  <div class="total-row total-row-1">{{SUBTOTAL}}</div>
+  <div class="total-row total-row-2">{{TAX}}</div>
+  <div class="total-row total-row-3">{{TOTAL}}</div>
+
+</div>
+</body>
+</html>

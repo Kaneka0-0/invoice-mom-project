@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -5,6 +6,7 @@ import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/app_provider.dart';
 import '../../../models/models.dart';
+import '../../../services/invoice_html_service.dart';
 import '../../../services/pdf_service.dart';
 import '../../../theme.dart';
 import '../../../widgets/common_widgets.dart';
@@ -18,7 +20,7 @@ class InvoiceViewScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
-        final s = provider.s;
+        final s       = provider.s;
         final invoice = provider.store.findInvoice(id);
 
         if (invoice == null) {
@@ -28,11 +30,10 @@ class InvoiceViewScreen extends StatelessWidget {
           );
         }
 
-        final client = provider.store.findClient(invoice.clientId ?? '');
-
+        final client  = provider.store.findClient(invoice.clientId ?? '');
         final fmt     = NumberFormat('#,##0.00');
         final intFmt  = NumberFormat('#,###');
-        final dateFmt = DateFormat('dd/MM/yyyy');
+        final dateFmt = DateFormat('dd MMM yyyy');
         final sym     = provider.settings.currencySymbol;
 
         String dateStr = invoice.date;
@@ -40,287 +41,278 @@ class InvoiceViewScreen extends StatelessWidget {
           dateStr = dateFmt.format(DateTime.parse(invoice.date));
         } catch (_) {}
 
-        final isPaid = invoice.paymentStatus == PaymentStatus.paid;
-
         return Scaffold(
-          appBar: AppBar(
-            title: Text(invoice.number),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => context.go('/invoices'),
-            ),
-            actions: [
-              if (!isPaid)
-                IconButton(
-                  icon: const Icon(Icons.check_circle_outline),
-                  tooltip: s.markPaid,
-                  onPressed: () => _markPaid(context, provider),
-                ),
-              IconButton(
-                icon: const Icon(Icons.edit_outlined),
-                tooltip: s.edit,
-                onPressed: () => context.push('/invoices/$id/edit'),
-              ),
-              IconButton(
-                icon: const Icon(Icons.picture_as_pdf_outlined),
-                tooltip: s.print,
-                onPressed: () => _printPdf(
-                  context,
-                  invoice: invoice,
-                  client: client,
-                  brickTypes: provider.brickTypes,
-                  settings: provider.settings,
-                ),
-              ),
-              const SizedBox(width: 8),
-            ],
-          ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // ── Header card ──────────────────────────────────────
-                _HeaderCard(
-                  invoice: invoice,
-                  dateStr: dateStr,
-                  sym: sym,
-                  fmt: fmt,
-                ),
-                const SizedBox(height: 12),
-
-                // ── Client info ───────────────────────────────────────
-                if (client != null)
-                  _InfoCard(
-                    title: '${s.billTo}  •  ជូនដល់',
-                    children: [
-                      InfoRow(
-                        label: s.name,
-                        value: client.name,
-                        valueStyle: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      if (client.address.isNotEmpty)
-                        InfoRow(label: s.address, value: client.address),
-                      if (client.phone.isNotEmpty)
-                        InfoRow(label: s.phone, value: client.phone),
-                      InfoRow(label: s.date, value: dateStr),
-                    ],
-                  ),
-                const SizedBox(height: 12),
-
-                // ── Items ─────────────────────────────────────────────
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
+          backgroundColor: const Color(0xFFF4F4F5),
+          body: CustomScrollView(
+            slivers: [
+              // ── Page header ──────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: Container(
+                  color: Colors.white,
+                  child: SafeArea(
+                    bottom: false,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.list_alt,
-                                color: AppColors.forest, size: 18),
-                            const SizedBox(width: 8),
-                            Text(s.items,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600)),
-                          ],
+                        // Back + actions row
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
+                          child: Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                    Icons.arrow_back_ios_new_rounded,
+                                    size: 18,
+                                    color: Color(0xFF0B2218)),
+                                onPressed: () => context.go('/invoices'),
+                              ),
+                              const Spacer(),
+                              _ActionBtn(
+                                icon: Icons.edit_outlined,
+                                onTap: () =>
+                                    context.push('/invoices/$id/edit'),
+                              ),
+                              const SizedBox(width: 8),
+                              _ActionBtn(
+                                icon: Icons.picture_as_pdf_outlined,
+                                onTap: () => _printPdf(
+                                  context,
+                                  invoice: invoice,
+                                  client: client,
+                                  brickTypes: provider.brickTypes,
+                                  settings: provider.settings,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        const Divider(height: 16),
-                        _tableHeader(s),
-                        const Divider(height: 4),
-                        ...invoice.items.asMap().entries.map((e) =>
-                            _tableRow(
-                              e.key,
-                              e.value,
-                              sym,
-                              fmt,
-                              intFmt,
-                              provider.store.findBrickType(
-                                  e.value.brickTypeId ?? ''),
-                            )),
-                        const Divider(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                    '${s.subtotal}: $sym${fmt.format(invoice.subtotal)}',
-                                    style: const TextStyle(fontSize: 13)),
-                                if (invoice.tax > 0) ...[
+                        // Title block
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+                          child: Text(
+                            invoice.number,
+                            style: const TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0D1F17),
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        ),
+                        if (client != null)
+                          Padding(
+                            padding:
+                                const EdgeInsets.fromLTRB(20, 3, 20, 0),
+                            child: Text(client.name,
+                                style: const TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.muted)),
+                          ),
+                        // Amount + date strip
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+                          child: Row(
+                            children: [
+                              Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Total Amount',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.muted)),
                                   const SizedBox(height: 2),
                                   Text(
-                                      'Tax: $sym${fmt.format(invoice.tax)}',
-                                      style: const TextStyle(fontSize: 13)),
-                                ],
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${s.total}: $sym${fmt.format(invoice.total)}',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.forest,
+                                    '$sym${fmt.format(invoice.total)}',
+                                    style: const TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF0B2218),
+                                      letterSpacing: -0.8,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ],
+                                ],
+                              ),
+                              const Spacer(),
+                              Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.end,
+                                children: [
+                                  _StatusPill(invoice.status.name),
+                                  const SizedBox(height: 6),
+                                  Text(dateStr,
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.muted)),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
+              ),
 
-                // ── Notes ─────────────────────────────────────────────
-                if (invoice.notes.isNotEmpty)
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
+              // ── Body ────────────────────────────────────────────────
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    // Client info
+                    if (client != null) ...[
+                      _SectionCard(
+                        icon: Icons.person_outline_rounded,
+                        label: s.billTo,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 46,
+                              height: 46,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0B2218).withAlpha(12),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                client.name.isNotEmpty
+                                    ? client.name[0].toUpperCase()
+                                    : '?',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF0B2218),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(client.name,
+                                      style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF0D1F17))),
+                                  if (client.phone.isNotEmpty) ...[
+                                    const SizedBox(height: 3),
+                                    Row(children: [
+                                      const Icon(Icons.phone_outlined,
+                                          size: 12, color: AppColors.muted),
+                                      const SizedBox(width: 4),
+                                      Text(client.phone,
+                                          style: const TextStyle(
+                                              fontSize: 12,
+                                              color: AppColors.muted)),
+                                    ]),
+                                  ],
+                                  if (client.address.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Row(children: [
+                                      const Icon(Icons.location_on_outlined,
+                                          size: 12, color: AppColors.muted),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(client.address,
+                                            style: const TextStyle(
+                                                fontSize: 12,
+                                                color: AppColors.muted)),
+                                      ),
+                                    ]),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                const Text('Date',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.muted)),
+                                const SizedBox(height: 3),
+                                Text(dateStr,
+                                    style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF0D1F17))),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+
+                    // Items
+                    _SectionCard(
+                      icon: Icons.inventory_2_outlined,
+                      label: s.items,
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(s.notes,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.slate)),
-                          const SizedBox(height: 6),
-                          Text(invoice.notes),
+                          _ItemsTable(
+                            invoice: invoice,
+                            sym: sym,
+                            fmt: fmt,
+                            intFmt: intFmt,
+                            provider: provider,
+                          ),
                         ],
                       ),
                     ),
-                  ),
-                const SizedBox(height: 24),
 
-                // ── Actions ───────────────────────────────────────────
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () => _printPdf(
+                    // Notes
+                    if (invoice.notes.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      _SectionCard(
+                        icon: Icons.notes_rounded,
+                        label: s.notes,
+                        child: Container(
+                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAF9),
+                            borderRadius: BorderRadius.circular(10),
+                            border: const Border(
+                              left: BorderSide(
+                                  color: Color(0xFF0B2218), width: 3),
+                            ),
+                          ),
+                          child: Text(
+                            invoice.notes,
+                            style: const TextStyle(
+                                fontSize: 13.5,
+                                color: AppColors.slate,
+                                height: 1.5),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 20),
+
+                    // Actions
+                    _ActionButtons(
+                      s: s,
+                      onPrint: () => _printPdf(
                         context,
                         invoice: invoice,
                         client: client,
                         brickTypes: provider.brickTypes,
                         settings: provider.settings,
                       ),
-                      icon: const Icon(Icons.picture_as_pdf),
-                      label: Text(s.print),
+                      onEdit: () => context.push('/invoices/$id/edit'),
+                      onDelete: () => _delete(context, provider),
                     ),
-                    if (!isPaid)
-                      OutlinedButton.icon(
-                        onPressed: () => _markPaid(context, provider),
-                        icon: const Icon(Icons.check_circle_outline),
-                        label: Text(s.markPaid),
-                      ),
-                    OutlinedButton.icon(
-                      onPressed: () =>
-                          context.push('/invoices/$id/edit'),
-                      icon: const Icon(Icons.edit),
-                      label: Text(s.edit),
-                    ),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.danger),
-                      onPressed: () => _delete(context, provider),
-                      icon: const Icon(Icons.delete_outline),
-                      label: Text(s.delete),
-                    ),
-                  ],
+                  ]),
                 ),
-                const SizedBox(height: 32),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
-    );
-  }
-
-  Widget _tableHeader(dynamic s) {
-    return Row(
-      children: [
-        const SizedBox(width: 24),
-        Expanded(
-            flex: 3,
-            child: Text('Brick Type',
-                style: const TextStyle(
-                    fontSize: 11, color: AppColors.muted))),
-        SizedBox(
-            width: 60,
-            child: Text(s.quantity,
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                    fontSize: 11, color: AppColors.muted))),
-        SizedBox(
-            width: 55,
-            child: Text(s.unitPrice,
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                    fontSize: 11, color: AppColors.muted))),
-        SizedBox(
-            width: 65,
-            child: Text(s.total,
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                    fontSize: 11, color: AppColors.muted))),
-      ],
-    );
-  }
-
-  Widget _tableRow(int idx, InvoiceItem item, String sym,
-      NumberFormat fmt, NumberFormat intFmt, BrickType? brickType) {
-    return Container(
-      color: idx.isEven ? AppColors.mint : AppColors.surface,
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 24,
-            child: Text(
-              '${idx + 1}',
-              style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.forest,
-                  fontWeight: FontWeight.bold),
-            ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Text(
-              brickType?.name ?? 'Brick',
-              style: const TextStyle(fontSize: 12),
-            ),
-          ),
-          SizedBox(
-            width: 60,
-            child: Text(
-              intFmt.format(item.quantity),
-              textAlign: TextAlign.right,
-              style: const TextStyle(fontSize: 12),
-            ),
-          ),
-          SizedBox(
-            width: 55,
-            child: Text(
-              '$sym${fmt.format(item.unitPrice)}',
-              textAlign: TextAlign.right,
-              style: const TextStyle(fontSize: 12),
-            ),
-          ),
-          SizedBox(
-            width: 65,
-            child: Text(
-              '$sym${fmt.format(item.total)}',
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -331,29 +323,27 @@ class InvoiceViewScreen extends StatelessWidget {
     required List<BrickType> brickTypes,
     required AppSettings settings,
   }) async {
-    final bytes = await PdfService.generateInvoice(
-      invoice: invoice,
-      client: client,
-      brickTypes: brickTypes,
-      settings: settings,
-    );
-    if (context.mounted) {
-      await Printing.layoutPdf(onLayout: (_) => bytes);
-    }
-  }
-
-  Future<void> _markPaid(
-      BuildContext context, AppProvider provider) async {
-    await provider.markInvoicePaid(id);
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invoice marked as paid')),
+    if (kIsWeb) {
+      await InvoiceHtmlService.download(
+        invoice: invoice,
+        client: client,
+        brickTypes: brickTypes,
+        settings: settings,
       );
+    } else {
+      final bytes = await PdfService.generateInvoice(
+        invoice: invoice,
+        client: client,
+        brickTypes: brickTypes,
+        settings: settings,
+      );
+      if (context.mounted) {
+        await Printing.layoutPdf(onLayout: (_) => bytes);
+      }
     }
   }
 
-  Future<void> _delete(
-      BuildContext context, AppProvider provider) async {
+  Future<void> _delete(BuildContext context, AppProvider provider) async {
     final ok = await showDeleteDialog(context, itemName: 'Invoice');
     if (!ok) return;
     await provider.deleteInvoice(id);
@@ -361,15 +351,64 @@ class InvoiceViewScreen extends StatelessWidget {
   }
 }
 
-// ── Widgets ───────────────────────────────────────────────────────────────────
+// ── Action button ─────────────────────────────────────────────────────────────
 
-class _HeaderCard extends StatelessWidget {
+class _ActionBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _ActionBtn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: const Color(0xFF0B2218),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: Colors.white, size: 20),
+      ),
+    );
+  }
+}
+
+// ── Status pill ───────────────────────────────────────────────────────────────
+
+class _StatusPill extends StatelessWidget {
+  final String status;
+  const _StatusPill(this.status);
+
+  @override
+  Widget build(BuildContext context) {
+    final label = status[0].toUpperCase() +
+        status.substring(1).replaceAll('_', ' ');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: statusBg(status),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(label,
+          style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: statusColor(status))),
+    );
+  }
+}
+
+// ── (removed _HeroHeader placeholder) ────────────────────────────────────────
+
+class _HeroHeader extends StatelessWidget {
   final Invoice invoice;
   final String dateStr;
   final String sym;
   final NumberFormat fmt;
 
-  const _HeaderCard({
+  const _HeroHeader({
     required this.invoice,
     required this.dateStr,
     required this.sym,
@@ -378,59 +417,88 @@ class _HeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final statusLabel = invoice.status.name[0].toUpperCase() +
+        invoice.status.name.substring(1).replaceAll('_', ' ');
+
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.forest, AppColors.forestDk],
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
+          colors: [Color(0xFF0B2218), Color(0xFF1A4030)],
         ),
-        borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      padding: const EdgeInsets.fromLTRB(20, 88, 20, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          Column(
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                invoice.number,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      invoice.number,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.calendar_today_outlined,
+                            color: Color(0xFF86EFAC), size: 12),
+                        const SizedBox(width: 5),
+                        Text(
+                          dateStr,
+                          style: const TextStyle(
+                              color: Color(0xFF86EFAC),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                dateStr,
-                style: TextStyle(
-                    color: Colors.white.withAlpha(210), fontSize: 13),
-              ),
+              _StatusBadge(label: statusLabel),
             ],
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '$sym${fmt.format(invoice.total)}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(18),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withAlpha(30)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Total Amount',
+                  style: TextStyle(
+                      color: Color(0xFFBBF7D0),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500),
                 ),
-              ),
-              const SizedBox(height: 4),
-              StatusBadge(
-                status: invoice.status.name,
-                label: invoice.status.label,
-              ),
-              const SizedBox(height: 2),
-              StatusBadge(
-                status: invoice.paymentStatus.name,
-                label: invoice.paymentStatus.label,
-              ),
-            ],
+                Text(
+                  '$sym${fmt.format(invoice.total)}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.8,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -438,37 +506,551 @@ class _HeaderCard extends StatelessWidget {
   }
 }
 
-class _InfoCard extends StatelessWidget {
-  final String title;
-  final List<Widget> children;
-
-  const _InfoCard({required this.title, required this.children});
+class _StatusBadge extends StatelessWidget {
+  final String label;
+  const _StatusBadge({required this.label});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.forest,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                title,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withAlpha(25),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withAlpha(60)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+            color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+// ── Section card ──────────────────────────────────────────────────────────────
+
+class _SectionCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Widget child;
+
+  const _SectionCard({
+    required this.icon,
+    required this.label,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(12),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0B2218).withAlpha(15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon,
+                      size: 15, color: const Color(0xFF0B2218)),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  label.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0B2218),
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(height: 1, color: const Color(0xFFF0F0F0)),
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: child,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Info row ──────────────────────────────────────────────────────────────────
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool bold;
+
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.bold = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 15, color: AppColors.muted),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 72,
+            child: Text(label,
                 style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600),
+                    fontSize: 12.5, color: AppColors.muted)),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
+                color: const Color(0xFF0D1F17),
               ),
             ),
-            const SizedBox(height: 10),
-            ...children,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Items table ───────────────────────────────────────────────────────────────
+
+class _ItemsTable extends StatelessWidget {
+  final Invoice invoice;
+  final String sym;
+  final NumberFormat fmt;
+  final NumberFormat intFmt;
+  final AppProvider provider;
+
+  const _ItemsTable({
+    required this.invoice,
+    required this.sym,
+    required this.fmt,
+    required this.intFmt,
+    required this.provider,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Header
+        Container(
+          padding:
+              const EdgeInsets.symmetric(vertical: 9, horizontal: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0B2218),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              const SizedBox(width: 22),
+              Expanded(
+                flex: 3,
+                child: Text('Brick Type',
+                    style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600)),
+              ),
+              _HeaderCell('Qty'),
+              _HeaderCell('Price'),
+              _HeaderCell('Total', last: true),
+            ],
+          ),
+        ),
+        const SizedBox(height: 2),
+        ...invoice.items.asMap().entries.map((e) {
+          return _ItemRow(
+            idx: e.key,
+            item: e.value,
+            sym: sym,
+            fmt: fmt,
+            intFmt: intFmt,
+            isKh: provider.isKh,
+            isLast: e.key == invoice.items.length - 1,
+          );
+        }),
+        const SizedBox(height: 12),
+        Container(height: 1, color: const Color(0xFFE5E7EB)),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0B2218).withAlpha(15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text('TOTAL',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0B2218),
+                      letterSpacing: 0.6)),
+            ),
+            Text(
+              '$sym${fmt.format(invoice.total)}',
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0B2218),
+                letterSpacing: -0.5,
+              ),
+            ),
           ],
+        ),
+        if (invoice.deposit > 0) ...[
+          const SizedBox(height: 8),
+          _TotalRow(
+            label: 'Deposit',
+            value: '$sym${fmt.format(invoice.deposit)}',
+          ),
+          _TotalRow(
+            label: 'Balance',
+            value: '$sym${fmt.format(invoice.total - invoice.deposit)}',
+            bold: true,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _HeaderCell extends StatelessWidget {
+  final String text;
+  final bool last;
+  const _HeaderCell(this.text, {this.last = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: last ? 70 : 60,
+      child: Text(text,
+          textAlign: TextAlign.right,
+          style: const TextStyle(
+              fontSize: 11,
+              color: Colors.white,
+              fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+String _brickName(String priceType, String category, bool isKh) {
+  if (isKh) {
+    final t = priceType == 'burned' ? 'ឥដ្ឋខ្លោច' : 'ឥដ្ឋធម្មតា';
+    final c = category == 'sol' ? 'ពាន់' : 'ប្រហោង';
+    return '$t $c';
+  }
+  final t = priceType == 'burned' ? 'Burnt' : 'Normal';
+  final c = category == 'sol' ? 'Sol' : 'Hol';
+  return '$t $c';
+}
+
+class _ItemRow extends StatelessWidget {
+  final int idx;
+  final InvoiceItem item;
+  final String sym;
+  final NumberFormat fmt;
+  final NumberFormat intFmt;
+  final bool isKh;
+  final bool isLast;
+
+  const _ItemRow({
+    required this.idx,
+    required this.item,
+    required this.sym,
+    required this.fmt,
+    required this.intFmt,
+    required this.isKh,
+    required this.isLast,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final typeColor = item.priceType == 'normal'
+        ? const Color(0xFF059669)
+        : const Color(0xFFD97706);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      decoration: BoxDecoration(
+        border: isLast
+            ? null
+            : const Border(
+                bottom: BorderSide(color: Color(0xFFF3F4F6))),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 22,
+            child: Container(
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                color: const Color(0xFF0B2218).withAlpha(20),
+                borderRadius: BorderRadius.circular(5),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '${idx + 1}',
+                style: const TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF0B2218),
+                    fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Row(
+              children: [
+                Container(
+                  width: 3,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: typeColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _brickName(item.priceType, item.brickCategory, isKh),
+                  style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF0D1F17),
+                      fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            width: 60,
+            child: Text(
+              intFmt.format(item.quantity),
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                  fontSize: 12.5, color: AppColors.slate),
+            ),
+          ),
+          SizedBox(
+            width: 60,
+            child: Text(
+              '$sym${fmt.format(item.unitPrice)}',
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                  fontSize: 12.5, color: AppColors.slate),
+            ),
+          ),
+          SizedBox(
+            width: 70,
+            child: Text(
+              '$sym${fmt.format(item.total)}',
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0B2218),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TotalRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool bold;
+  const _TotalRow({required this.label, required this.value, this.bold = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
+                  color: bold ? const Color(0xFF0D1F17) : AppColors.muted)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: bold ? FontWeight.w700 : FontWeight.normal,
+                  color: const Color(0xFF0D1F17))),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Action buttons ────────────────────────────────────────────────────────────
+
+class _ActionButtons extends StatelessWidget {
+  final dynamic s;
+  final VoidCallback onPrint;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _ActionButtons({
+    required this.s,
+    required this.onPrint,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          flex: 3,
+          child: FilledButton.icon(
+            onPressed: onPrint,
+            icon: const Icon(Icons.picture_as_pdf_outlined, size: 17),
+            label: Text(s.print,
+                style: const TextStyle(fontWeight: FontWeight.w700)),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF0B2218),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          flex: 2,
+          child: _SecondaryBtn(
+            icon: Icons.edit_outlined,
+            label: s.edit,
+            onTap: onEdit,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          flex: 2,
+          child: _SecondaryBtn(
+            icon: Icons.delete_outline_rounded,
+            label: s.delete,
+            onTap: onDelete,
+            danger: true,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SecondaryBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool danger;
+
+  const _SecondaryBtn({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.danger = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = danger ? AppColors.danger : const Color(0xFF0B2218);
+    final bg    = danger
+        ? AppColors.danger.withAlpha(12)
+        : const Color(0xFF0B2218).withAlpha(10);
+
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 13),
+          child: Column(
+            children: [
+              Icon(icon, size: 20, color: color),
+              const SizedBox(height: 4),
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: color)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── AppBar button ─────────────────────────────────────────────────────────────
+
+class _AppBarBtn extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  const _AppBarBtn({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Icon(icon, color: Colors.white, size: 22),
+          ),
         ),
       ),
     );

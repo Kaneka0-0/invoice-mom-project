@@ -14,6 +14,9 @@ class AppSettings {
   String currency;
   String currencySymbol;
   int nextInvoiceNum;
+  // Monthly invoice seller contact (shown in the Contact box on the PDF).
+  String invoicePhone1;
+  String invoicePhone2;
 
   AppSettings({
     this.companyName = 'Panha Brick Factory',
@@ -25,6 +28,8 @@ class AppSettings {
     this.currency = 'USD',
     this.currencySymbol = '\$',
     this.nextInvoiceNum = 1,
+    this.invoicePhone1 = '069 525 576',
+    this.invoicePhone2 = '012 285 532',
   });
 
   // Settings table uses quoted camelCase columns — match them exactly.
@@ -38,6 +43,8 @@ class AppSettings {
         'currency': currency,
         'currencySymbol': currencySymbol,
         'nextInvoiceNum': nextInvoiceNum,
+        'invoicePhone1': invoicePhone1,
+        'invoicePhone2': invoicePhone2,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> j) => AppSettings(
@@ -50,6 +57,8 @@ class AppSettings {
         currency: j['currency'] ?? 'USD',
         currencySymbol: j['currencySymbol'] ?? '\$',
         nextInvoiceNum: j['nextInvoiceNum'] ?? 1,
+        invoicePhone1: j['invoicePhone1'] ?? '069 525 576',
+        invoicePhone2: j['invoicePhone2'] ?? '012 285 532',
       );
 }
 
@@ -246,12 +255,14 @@ class Vendor {
 class BrickType {
   final String id;
   String name;
+  String category;    // e.g. "ឥដ្ឋភ្លើង Brunt Brick"
   String description;
   final String createdAt;
 
   BrickType({
     required this.id,
     required this.name,
+    this.category = '',
     this.description = '',
     this.createdAt = '',
   });
@@ -259,6 +270,7 @@ class BrickType {
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
+        'category': category,
         'description': description,
         'created_at': createdAt,
       };
@@ -266,6 +278,7 @@ class BrickType {
   factory BrickType.fromJson(Map<String, dynamic> j) => BrickType(
         id: j['id'],
         name: j['name'],
+        category: j['category'] ?? '',
         description: j['description'] ?? '',
         createdAt: j['created_at'] ?? '',
       );
@@ -348,6 +361,8 @@ class InvoiceItem {
   int quantity;
   double unitPrice;
   double total;
+  String priceType;    // 'normal' | 'burned'
+  String brickCategory; // 'hol' | 'sol'
 
   InvoiceItem({
     required this.id,
@@ -356,6 +371,8 @@ class InvoiceItem {
     required this.quantity,
     required this.unitPrice,
     required this.total,
+    this.priceType     = 'normal',
+    this.brickCategory = 'hol',
   });
 
   void recalculate() => total = quantity * unitPrice;
@@ -367,6 +384,8 @@ class InvoiceItem {
         'quantity': quantity,
         'unit_price': unitPrice,
         'total': total,
+        'price_type': priceType,
+        'brick_category': brickCategory,
       };
 
   factory InvoiceItem.fromJson(Map<String, dynamic> j) => InvoiceItem(
@@ -376,6 +395,8 @@ class InvoiceItem {
         quantity: j['quantity'] ?? 0,
         unitPrice: ((j['unit_price'] ?? j['unitPrice']) ?? 0).toDouble(),
         total: ((j['total']) ?? 0).toDouble(),
+        priceType:     j['price_type'] ?? 'normal',
+        brickCategory: j['brick_category'] ?? 'hol',
       );
 
   InvoiceItem clone() => InvoiceItem(
@@ -460,6 +481,7 @@ class Invoice {
   double subtotal;
   double tax;
   double total;
+  double deposit;
   String notes;
   final String createdAt;
   List<InvoiceItem> items; // embedded locally, synced to invoice_items table
@@ -474,6 +496,7 @@ class Invoice {
     this.subtotal = 0,
     this.tax = 0,
     this.total = 0,
+    this.deposit = 0,
     this.notes = '',
     required this.createdAt,
     List<InvoiceItem>? items,
@@ -482,7 +505,7 @@ class Invoice {
   void recalculate() {
     for (final item in items) item.recalculate();
     subtotal = items.fold(0, (s, i) => s + i.total);
-    total = subtotal + tax;
+    total = subtotal;
   }
 
   int get totalBricks => items.fold(0, (s, i) => s + i.quantity);
@@ -497,6 +520,7 @@ class Invoice {
         'subtotal': subtotal,
         'tax': tax,
         'total': total,
+        'deposit': deposit,
         'notes': notes,
         'created_at': createdAt,
         'items': items.map((e) => e.toJson()).toList(),
@@ -514,6 +538,7 @@ class Invoice {
       subtotal: ((j['subtotal']) ?? 0).toDouble(),
       tax: ((j['tax']) ?? 0).toDouble(),
       total: ((j['total']) ?? 0).toDouble(),
+      deposit: ((j['deposit']) ?? 0).toDouble(),
       notes: j['notes'] ?? '',
       createdAt: j['created_at'] ?? j['createdAt'] ?? '',
       items: (rawItems as List<dynamic>? ?? [])

@@ -13,9 +13,10 @@ class BrickTypeFormScreen extends StatefulWidget {
 }
 
 class _BrickTypeFormScreenState extends State<BrickTypeFormScreen> {
-  final _formKey   = GlobalKey<FormState>();
-  final _nameCtrl  = TextEditingController();
-  final _descCtrl  = TextEditingController();
+  final _formKey    = GlobalKey<FormState>();
+  final _nameCtrl   = TextEditingController();
+  final _catCtrl    = TextEditingController();
+  final _descCtrl   = TextEditingController();
   bool _saving = false;
 
   @override
@@ -29,6 +30,7 @@ class _BrickTypeFormScreenState extends State<BrickTypeFormScreen> {
     final bt = context.read<AppProvider>().store.findBrickType(widget.id!);
     if (bt == null) return;
     _nameCtrl.text = bt.name;
+    _catCtrl.text  = bt.category;
     _descCtrl.text = bt.description;
     setState(() {});
   }
@@ -36,6 +38,7 @@ class _BrickTypeFormScreenState extends State<BrickTypeFormScreen> {
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _catCtrl.dispose();
     _descCtrl.dispose();
     super.dispose();
   }
@@ -43,6 +46,16 @@ class _BrickTypeFormScreenState extends State<BrickTypeFormScreen> {
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.id != null;
+    final provider = context.watch<AppProvider>();
+
+    // Collect unique category names already in use for autocomplete
+    final existingCategories = provider.brickTypes
+        .map((b) => b.category)
+        .where((c) => c.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+
     return Scaffold(
       appBar: AppBar(
         title: Text(isEdit ? 'Edit Brick Type' : 'Add Brick Type'),
@@ -57,31 +70,72 @@ class _BrickTypeFormScreenState extends State<BrickTypeFormScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              // ── Category ──────────────────────────────────────────────
               FormSection(
-                title: 'Brick Type',
+                title: 'Category  •  ប្រភេទ',
+                children: [
+                  Autocomplete<String>(
+                    initialValue: TextEditingValue(text: _catCtrl.text),
+                    optionsBuilder: (v) => existingCategories
+                        .where((c) => c.toLowerCase()
+                            .contains(v.text.toLowerCase())),
+                    fieldViewBuilder: (ctx, ctrl, focus, onSubmit) {
+                      _catCtrl.text = ctrl.text;
+                      return TextFormField(
+                        controller: ctrl,
+                        focusNode: focus,
+                        decoration: const InputDecoration(
+                          labelText: 'Category *',
+                          hintText:
+                              'e.g.  ឥដ្ឋភ្លើង Brunt Brick',
+                          helperText:
+                              'Groups brick types on the invoice',
+                        ),
+                        onFieldSubmitted: (_) => onSubmit(),
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? 'Required' : null,
+                      );
+                    },
+                    onSelected: (v) => setState(() => _catCtrl.text = v),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ── Name ──────────────────────────────────────────────────
+              FormSection(
+                title: 'Brick Type Name  •  ឈ្មោះប្រភេទ',
                 children: [
                   TextFormField(
                     controller: _nameCtrl,
                     decoration: const InputDecoration(
                       labelText: 'Name *',
-                      hintText: 'e.g. Standard, Premium, Hollow',
+                      hintText: 'e.g.  ឥដ្ឋប្រហោង  Hollow',
+                      helperText: 'Shown on the invoice item row',
                     ),
-                    textCapitalization: TextCapitalization.words,
                     validator: (v) =>
                         (v == null || v.isEmpty) ? 'Required' : null,
                   ),
-                  const SizedBox(height: 12),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ── Notes ─────────────────────────────────────────────────
+              FormSection(
+                title: 'Notes  (optional)',
+                children: [
                   TextFormField(
                     controller: _descCtrl,
                     decoration: const InputDecoration(
-                      labelText: 'Description (optional)',
-                      hintText: 'e.g. Standard red clay brick, 25×12×6 cm',
+                      labelText: 'Notes',
+                      hintText: 'Dimensions, colour, etc.',
                     ),
-                    maxLines: 3,
+                    maxLines: 2,
                   ),
                 ],
               ),
               const SizedBox(height: 32),
+
               SizedBox(
                 height: 48,
                 child: ElevatedButton.icon(
@@ -111,13 +165,15 @@ class _BrickTypeFormScreenState extends State<BrickTypeFormScreen> {
       final provider = context.read<AppProvider>();
       if (widget.id == null) {
         await provider.addBrickType(
-          name: _nameCtrl.text.trim(),
+          name:        _nameCtrl.text.trim(),
+          category:    _catCtrl.text.trim(),
           description: _descCtrl.text.trim(),
         );
       } else {
         final bt = provider.store.findBrickType(widget.id!);
         if (bt != null) {
           bt.name        = _nameCtrl.text.trim();
+          bt.category    = _catCtrl.text.trim();
           bt.description = _descCtrl.text.trim();
           await provider.updateBrickType(bt);
         }

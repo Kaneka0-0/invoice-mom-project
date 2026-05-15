@@ -84,7 +84,7 @@ class _WorkerFormScreenState extends State<WorkerFormScreen> {
                     title: s.role,
                     children: [
                       DropdownButtonFormField<WorkerRole>(
-                        initialValue: _role,
+                        value: _role,
                         decoration: InputDecoration(labelText: s.role),
                         items: WorkerRole.values
                             .map((r) => DropdownMenuItem(

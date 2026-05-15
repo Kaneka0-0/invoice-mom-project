@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/app_provider.dart';
 import '../../../theme.dart';
 import '../../../widgets/common_widgets.dart';
+import 'client_form_screen.dart';
 
 class ClientListScreen extends StatefulWidget {
   const ClientListScreen({super.key});
@@ -28,61 +30,128 @@ class _ClientListScreenState extends State<ClientListScreen> {
             .toList();
 
         return Scaffold(
-          appBar: AppBar(
-            title: Text(s.clients),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.person_add_outlined),
-                onPressed: () => context.push('/clients/new'),
-              ),
-              const SizedBox(width: 8),
-            ],
-          ),
+          backgroundColor: const Color(0xFFF4F4F5),
           body: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: s.search,
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    isDense: true,
+              // ── Page header ──────────────────────────────────────────
+              Container(
+                color: Colors.white,
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    s.clients,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.w800,
+                                      color: const Color(0xFF0D1F17),
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    'Manage your clients',
+                                    style: GoogleFonts.inter(
+                                        fontSize: 13, color: AppColors.muted),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () => showClientSheet(context),
+                              child: Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0B2218),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(Icons.person_add_outlined,
+                                    color: Colors.white, size: 20),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        TextField(
+                          decoration: InputDecoration(
+                            hintText: s.search,
+                            prefixIcon: const Icon(Icons.search, size: 20),
+                            isDense: true,
+                            fillColor: const Color(0xFFF4F4F5),
+                            filled: true,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                          onChanged: (v) => setState(() => _search = v),
+                        ),
+                      ],
+                    ),
                   ),
-                  onChanged: (v) => setState(() => _search = v),
                 ),
               ),
-              const Divider(height: 1),
+
+              // ── List ────────────────────────────────────────────────
               Expanded(
                 child: filtered.isEmpty
-                    ? EmptyState(
-                        icon: Icons.people_outlined,
-                        message: s.noClients,
-                        actionLabel: '${s.add} ${s.clients}',
-                        onAction: () => context.push('/clients/new'),
+                    ? Center(
+                        child: EmptyState(
+                          icon: Icons.people_outlined,
+                          message: s.noClients,
+                          actionLabel: '${s.add} ${s.clients}',
+                          onAction: () => showClientSheet(context),
+                        ),
                       )
                     : ListView.separated(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(14),
                         itemCount: filtered.length,
                         separatorBuilder: (_, __) =>
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 8),
                         itemBuilder: (ctx, i) {
                           final c = filtered[i];
-                          return Card(
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                  color: const Color(0xFFE5E7EB)),
+                            ),
                             child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 6),
                               leading: CircleAvatar(
-                                backgroundColor: AppColors.pale,
+                                backgroundColor:
+                                    const Color(0xFF0B2218).withAlpha(14),
                                 child: Text(
                                   c.name.isNotEmpty
                                       ? c.name[0].toUpperCase()
                                       : '?',
                                   style: const TextStyle(
-                                      color: AppColors.forest,
+                                      color: Color(0xFF0B2218),
                                       fontWeight: FontWeight.bold),
                                 ),
                               ),
                               title: Text(c.name,
                                   style: const TextStyle(
-                                      fontWeight: FontWeight.w600)),
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF0D1F17))),
                               subtitle: Column(
                                 crossAxisAlignment:
                                     CrossAxisAlignment.start,
@@ -99,15 +168,19 @@ class _ClientListScreenState extends State<ClientListScreen> {
                                             color: AppColors.muted)),
                                 ],
                               ),
-                              isThreeLine: true,
+                              isThreeLine: c.phone.isNotEmpty &&
+                                  c.address.isNotEmpty,
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
-                                    icon: const Icon(Icons.edit_outlined,
-                                        size: 18),
-                                    onPressed: () => context.push(
-                                        '/clients/${c.id}/edit'),
+                                    icon: const Icon(
+                                        Icons.edit_outlined,
+                                        size: 18,
+                                        color: Color(0xFF0B2218)),
+                                    onPressed: () => showClientSheet(
+                                        context,
+                                        id: c.id),
                                   ),
                                   IconButton(
                                     icon: const Icon(
@@ -133,7 +206,9 @@ class _ClientListScreenState extends State<ClientListScreen> {
             ],
           ),
           floatingActionButton: FloatingActionButton(
-            onPressed: () => context.push('/clients/new'),
+            onPressed: () => showClientSheet(context),
+            backgroundColor: const Color(0xFF0B2218),
+            foregroundColor: Colors.white,
             child: const Icon(Icons.person_add),
           ),
         );

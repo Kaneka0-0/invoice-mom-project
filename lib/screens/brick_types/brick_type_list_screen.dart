@@ -53,11 +53,31 @@ class BrickTypeListScreen extends StatelessWidget {
                         title: Text(bt.name,
                             style: const TextStyle(
                                 fontWeight: FontWeight.w600)),
-                        subtitle: bt.description.isNotEmpty
-                            ? Text(bt.description,
-                                style: const TextStyle(
-                                    fontSize: 12, color: AppColors.muted))
-                            : null,
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (bt.category.isNotEmpty)
+                              Container(
+                                margin: const EdgeInsets.only(top: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.pale,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(bt.category,
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.forest,
+                                        fontWeight: FontWeight.w500)),
+                              ),
+                            if (bt.description.isNotEmpty)
+                              Text(bt.description,
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.muted)),
+                          ],
+                        ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [

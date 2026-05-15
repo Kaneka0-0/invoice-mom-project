@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="km">
+
+<head>
+  <meta charset="UTF-8">
+  <!--
+  Monthly Invoice Template — Panha Brick Factory (Invoice-03)
+  ════════════════════════════════════════════════════════════
+  HTML structure lives here.
+  CSS layout → assets/monthly_invoice_styles.css
+
+  Placeholder tokens (filled by Dart before PDF generation):
+    {{STYLES}}           CSS injected from monthly_invoice_styles.css
+    {{LOGO_DATA_URI}}    Logo image (base64 data URI)
+    {{TELEGRAM_QR}}      Telegram QR/image (base64 data URI)
+    {{ABA_QR}}           ABA QR image (base64 data URI)
+    {{SELLER_PHONE1}}    First seller phone number
+    {{SELLER_PHONE2}}    Second seller phone number
+    {{CLIENT_NAME}}      Client name
+    {{CLIENT_PHONE}}     Client phone
+    {{INVOICE_NO}}       Invoice reference number (e.g. M-202605)
+    {{DAY}}              Day of document date
+    {{MONTH}}            Month of document date
+    {{YEAR}}             Year of document date
+    {{TABLE_ROWS}}       <tr>...</tr> rows injected by Dart
+    {{TFOOT}}            Summary tfoot injected by Dart (last page only)
+    {{BOTTOM_SECTION}}   ACLEDA QR + Signature + Payment Date (last page only)
+-->
+  <style>{{STYLES}}</style>
+</head>
+
+<body>
+  <div class="page">
+
+    <!-- ── Logo block ─────────────────────────────────────────────── -->
+    <div class="logo-block">
+      <img src="{{LOGO_DATA_URI}}" alt="Logo">
+    </div>
+
+    <!-- ── Company name block ─────────────────────────────────────── -->
+    <div class="company-block">
+      <div class="company-kh">ឈុន​​ មុយលី</div>
+      <div class="company-en">CHHUN MUYLY</div>
+      <div class="company-cn">春 美丽</div>
+    </div>
+
+    <!-- ── Top-right: Telegram QR (ABA moved to bottom near ACLEDA) ── -->
+    <div class="top-right-contact">
+      <div class="qr-item">
+        <img src="{{TELEGRAM_QR}}" alt="Telegram">
+        <div class="qr-item-label">តេឡេក្រាម</div>
+      </div>
+    </div>
+
+    <!-- ── Header divider ─────────────────────────────────────────── -->
+    <div class="header-divider"></div>
+
+    <!-- ── Info boxes ─────────────────────────────────────────────── -->
+    <div class="info-section">
+
+      <!-- Row 1: Supplier + Contact -->
+      <div class="info-row-1">
+        <div class="info-box supplier-box">
+          <div class="box-label">អ្នកលក់/Supplier</div>
+          <div class="box-body">
+            <div class="supplier-name-row">
+              <span class="name-kh">ឡឥដ្ឋ​ បៃតង</span>
+              <span class="name-en">(Green Brick Factory)</span>
+            </div>
+            <div class="box-address">ភូមិ/ឃុំ ព្រះប្រសប់, ស្រុក ខ្សាច់កណ្ដាល, ខេត្ត កណ្ដាល</div>
+          </div>
+        </div>
+        <div class="info-box contact-box">
+          <div class="box-label">លេខទំនាក់ទំនង/Contact:</div>
+          <div class="box-body">
+            <div class="box-phone">{{SELLER_PHONE1}}</div>
+            <div class="box-phone">{{SELLER_PHONE2}}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Client + Invoice Ref -->
+      <div class="info-row-2">
+        <div class="info-box client-box">
+          <div class="box-body">
+            <div class="client-field">
+              <span class="field-label">អ្នកទទួល/Client:</span>
+              <span class="field-value">{{CLIENT_NAME}}</span>
+            </div>
+            <div class="client-field">
+              <span class="field-label">លេខទំនាក់ទំនង/Contact:</span>
+              <span class="field-value">{{CLIENT_PHONE}}</span>
+            </div>
+          </div>
+        </div>
+        <div class="info-box invoiceref-box">
+          <div class="invoiceref-no">Invoice No: {{INVOICE_NO}}</div>
+          <div class="invoiceref-date">ថ្ងៃទី {{DAY}} ខែ {{MONTH}} ឆ្នំ {{YEAR}}</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Invoice title ──────────────────────────────────────────── -->
+    <div class="invoice-title">Invoice</div>
+
+    <!-- ── Invoice table ─────────────────────────────────────────── -->
+    <table class="invoice-table">
+      <colgroup>
+        <col class="col-no">
+        <col class="col-date">
+        <col class="col-desc">
+        <col class="col-qty">
+        <col class="col-up">
+        <col class="col-total">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>NO</th>
+          <th>Date</th>
+          <th>Description</th>
+          <th>Quantity</th>
+          <th>Unit Price</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{TABLE_ROWS}}
+      </tbody>
+      {{TFOOT}}
+    </table>
+
+    <!-- ── Bottom section (ACLEDA QR + Signature + Payment Date) ───
+         Injected by Dart on last page only via {{BOTTOM_SECTION}}   -->
+    {{BOTTOM_SECTION}}
+
+  </div>
+</body>
+
+</html>

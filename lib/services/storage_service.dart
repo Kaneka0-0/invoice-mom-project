@@ -66,11 +66,18 @@ class StorageService {
   }
 
   // ── Invoice number ────────────────────────────────────────────────────────
+  // Derived from actual invoice data so it never resets on sync.
   String nextInvoiceNumber() {
     final year = DateTime.now().year;
-    final num = settings.nextInvoiceNum;
-    settings.nextInvoiceNum = num + 1;
-    return 'INV-$year-${num.toString().padLeft(4, '0')}';
+    final prefix = 'INV-$year-';
+    int maxNum = 0;
+    for (final inv in invoices) {
+      if (inv.number.startsWith(prefix)) {
+        final n = int.tryParse(inv.number.substring(prefix.length)) ?? 0;
+        if (n > maxNum) maxNum = n;
+      }
+    }
+    return 'INV-$year-${(maxNum + 1).toString().padLeft(4, '0')}';
   }
 
   // ── Lookup helpers ────────────────────────────────────────────────────────

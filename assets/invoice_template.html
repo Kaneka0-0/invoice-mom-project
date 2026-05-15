@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="km">
+
+<head>
+  <meta charset="UTF-8">
+  <!--
+  Invoice Template — Panha Brick Factory
+  ════════════════════════════════════════
+  HTML structure lives here.
+  CSS layout → assets/invoice_styles.css  (edit for positioning / colors)
+
+  Placeholder tokens (filled by Dart before PDF generation):
+    {{STYLES}}          CSS injected from invoice_styles.css
+    {{LOGO_DATA_URI}}   Logo image (base64 data URI)
+    {{COMPANY_NAME}}    Khmer company name
+    {{PHONE_LINES}}     Phone numbers as <span> lines (split by Dart)
+    {{INVOICE_NUMBER}}  Invoice number
+    {{SELLER_NAME}}  {{SELLER_ADDRESS}}  {{SELLER_PHONE}}
+    {{BUYER_NAME}}   {{BUYER_ADDRESS}}
+    {{ITEM_ROWS}}    <tr> rows injected by Dart (up to 5)
+    {{TOTAL}}   {{DEPOSIT}}   {{BALANCE}}
+-->
+  <style>{{STYLES}}</style>
+</head>
+
+<body>
+  <div class="page">
+
+    <!-- ── Logo ─────────────────────────────────────────────────────── -->
+    <img class="logo" src="{{LOGO_DATA_URI}}" alt="">
+
+    <!-- ── Company name: KH / Latin / Chinese ───────────────────────── -->
+    <div class="company-block">
+      <div class="company-kh">ឈុន មុយលី</div>
+      <div class="company-en">CHHUN MUYLY</div>
+      <div class="company-cn">春 美丽</div>
+    </div>
+
+    <!-- ── Top-right Telegram QR ─────────────────────────────────────── -->
+    <img class="top-right-box" src="{{TELEGRAM_QR}}" alt="Telegram">
+    <div class="telegram-label">Telegram</div>
+
+    <!-- ── Divider lines ─────────────────────────────────────────────── -->
+    <div class="line-1"></div>
+    <div class="line-2"></div>
+
+    <!-- ── Phone section (two numbers) ──────────────────────────────── -->
+    <div class="phone-section">
+      <div class="phone-icon">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M2.5 1.5h2l.75 2-1.25.75a7 7 0 0 0 3.75 3.75l.75-1.25 2 .75v2A1 1 0 0 1 9.5 10.5C4.25 10.5 1.5 7.75 1.5 2.5A1 1 0 0 1 2.5 1.5z"
+            stroke="#0A0A0A" stroke-width="0.8" fill="none" />
+        </svg>
+      </div>
+      <div class="phone-lines">
+        <span>069 325 578</span>
+        <span>012 285 532</span>
+      </div>
+    </div>
+
+    <!-- ── Invoice number + date ────────────────────────────────────── -->
+    <div class="invoice-ref">
+      <div class="ref-row">
+        <span class="ref-label">No</span>
+        <span class="ref-number">{{INVOICE_NUMBER}}</span>
+      </div>
+      <div class="ref-date">ថ្ងៃ ទី {{DAY}} ខែ {{MONTH}} ឆ្នំ {{YEAR}}</div>
+    </div>
+
+    <!-- ── Seller box ─────────────────────────────────────────────────── -->
+    <div class="seller-box">
+      <div class="box-label">អ្នកលក់</div>
+      <div class="box-body">
+        <div class="seller-name-row">
+          <span class="name-kh">{{SELLER_NAME}}</span>
+        </div>
+        <div class="box-address">{{SELLER_ADDRESS}}</div>
+        <div class="box-address">{{SELLER_PHONE}}</div>
+      </div>
+    </div>
+
+    <!-- ── Buyer box ──────────────────────────────────────────────────── -->
+    <div class="buyer-box">
+      <div class="box-label">អ្នកទទួល</div>
+      <div class="box-body">
+        <div class="buyer-field">
+          <span class="field-label">ឈ្មោះ</span><span class="field-colon">:</span>
+          <span class="field-value">{{BUYER_NAME}}</span>
+        </div>
+        <div class="buyer-field">
+          <span class="field-label">អាស័យដ្ឋាន</span><span class="field-colon">:</span>
+          <span class="field-value">{{BUYER_ADDRESS}}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Invoice table ─────────────────────────────────────────────── -->
+    <table class="invoice-table">
+      <colgroup>
+        <col class="col-no">
+        <col class="col-product">
+        <col class="col-qty">
+        <col class="col-up">
+        <col class="col-amount">
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="col-no">
+            <div class="th-wrap"><span class="th-kh">ល.រ</span><span class="th-en">Nº</span></div>
+          </th>
+          <th class="col-product">
+            <div class="th-wrap"><span class="th-kh">មុខទំនិញ</span><span class="th-en">Product</span></div>
+          </th>
+          <th class="col-qty">
+            <div class="th-wrap"><span class="th-kh">បរិមាណ</span><span class="th-en">QTY</span></div>
+          </th>
+          <th class="col-up">
+            <div class="th-wrap"><span class="th-kh">តម្លៃឯកតា</span><span class="th-en">U.P</span></div>
+          </th>
+          <th class="col-amount">
+            <div class="th-wrap"><span class="th-kh">សរុប</span><span class="th-en">Amount</span></div>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Row 1 — ឥដ្ឋប្រហោង (Hol) -->
+        <tr>
+          <td>1</td>
+          <td class="td-product td-product-kh"><span class="product-abbr">(Hol)</span>ឥដ្ឋប្រហោង</td>
+          <td>{{R1_QTY}}</td><td>{{R1_UP}}</td><td>{{R1_AMT}}</td>
+        </tr>
+        <!-- Row 2 — ឥដ្ឋតាន់ (Sol) -->
+        <tr>
+          <td>2</td>
+          <td class="td-product td-product-kh"><span class="product-abbr">(Sol)</span>ឥដ្ឋតាន់</td>
+          <td>{{R2_QTY}}</td><td>{{R2_UP}}</td><td>{{R2_AMT}}</td>
+        </tr>
+        <!-- Category header -->
+        <tr class="cat-row">
+          <td colspan="5" class="td-cat">ឥដ្ឋ (ខ្លោច)&nbsp;&nbsp;&nbsp;Burnt Brick</td>
+        </tr>
+        <!-- Row 3 — ឥដ្ឋប្រហោង (ខ្លោច) -->
+        <tr>
+          <td>3</td>
+          <td class="td-product td-product-kh">ឥដ្ឋប្រហោង (ខ្លោច)</td>
+          <td>{{R3_QTY}}</td><td>{{R3_UP}}</td><td>{{R3_AMT}}</td>
+        </tr>
+        <!-- Row 4 — ឥដ្ឋតាន់ (ខ្លោច) -->
+        <tr>
+          <td>4</td>
+          <td class="td-product td-product-kh">ឥដ្ឋតាន់ (ខ្លោច)</td>
+          <td>{{R4_QTY}}</td><td>{{R4_UP}}</td><td>{{R4_AMT}}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- ── Stamps ────────────────────────────────────────────────────── -->
+    <div class="stamps-area">
+      <div class="stamp-block">
+        <img class="stamp-qr" src="{{ABA_QR}}" alt="ABA">
+        <div class="stamp-label">ABA</div>
+      </div>
+      <div class="stamp-block">
+        <img class="stamp-qr" src="{{ACLEDA_QR}}" alt="ACLEDA">
+        <div class="stamp-label">ACLEDA</div>
+      </div>
+    </div>
+
+    <!-- ── Totals ─────────────────────────────────────────────────────── -->
+    <div class="totals-area">
+      <div class="tr-block tr-1">
+        <div class="tr-label"><span class="kh">ប្រាក់សរុប</span><span class="en">Total</span></div>
+        <div class="tr-amount">{{TOTAL}}</div>
+      </div>
+      <div class="tr-block tr-2">
+        <div class="tr-label"><span class="kh">ប្រាក់កក់</span><span class="en">Deposit</span></div>
+        <div class="tr-amount">{{DEPOSIT}}</div>
+      </div>
+      <div class="tr-block tr-3">
+        <div class="tr-label"><span class="kh">ប្រាក់សល់</span><span class="en">Balance</span></div>
+        <div class="tr-amount">{{BALANCE}}</div>
+      </div>
+    </div>
+
+    <!-- ── Signatures ─────────────────────────────────────────────────── -->
+    <div class="signatures-area">
+      <div class="sig-block">
+        <div class="sig-title">អ្នកទទួល</div>
+        <div class="sig-line"></div>
+      </div>
+      <div class="sig-block">
+        <div class="sig-title">អ្នកដឹក</div>
+        <div class="sig-line"></div>
+      </div>
+      <div class="sig-block">
+        <div class="sig-title">អ្នកលក់</div>
+        <div class="sig-line"></div>
+      </div>
+    </div>
+
+  </div>
+</body>
+
+</html>
