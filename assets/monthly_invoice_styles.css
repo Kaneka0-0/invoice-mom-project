@@ -1,6 +1,6 @@
 /*
  * Monthly Invoice CSS — Panha Brick Factory (Invoice-03)
- * Canvas: 420 × 595 px  (A5 at 72 dpi)
+ * Canvas: 595 × 842 px  (A4 at 96 dpi)
  */
 
 @import url('https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@300;400;500;600;700&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Cormorant+Garamond:wght@700&family=Moul&display=swap');
@@ -9,12 +9,12 @@
 body { background: #d8d8d8; display: flex; flex-direction: column; align-items: center; padding: 20px; gap: 20px; }
 
 /* ═══════════════════════════════════════════════════════════════
-   PAGE  —  A5 at 72 dpi  (420 × 595 px)
+   PAGE  —  A4 at 96 dpi
    ═══════════════════════════════════════════════════════════════ */
 .page {
   position: relative;
-  width: 420px;
-  height: 595px;
+  width: 595px;
+  height: 842px;
   background: #ffffff;
   overflow: hidden;
   flex-shrink: 0;
@@ -24,81 +24,81 @@ body { background: #d8d8d8; display: flex; flex-direction: column; align-items: 
 }
 
 /* ───────────────────────────────────────────────────────────────
-   LOGO BLOCK  left:14 top:6
+   LOGO BLOCK  left:24 top:10  — shows full logo.png as-is
    ─────────────────────────────────────────────────────────────── */
 .logo-block {
   position: absolute;
-  left: 14px;
-  top: 6px;
-  width: 66px;
+  left: 24px;
+  top: 10px;
+  width: 95px;
 }
 .logo-block img {
-  width: 66px;
+  width: 95px;
   height: auto;
   display: block;
   object-fit: contain;
 }
 
 /* ───────────────────────────────────────────────────────────────
-   COMPANY NAME BLOCK  centered top:10
+   COMPANY NAME BLOCK  centered, top:12
    ─────────────────────────────────────────────────────────────── */
 .company-block {
   position: absolute;
-  left: calc(50% - 80px);
-  top: 10px;
-  width: 160px;
+  left: calc(50% - 90px);
+  top: 12px;
+  width: 180px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
+  gap: 2px;
 }
 .company-kh {
   font-family: 'Moul', 'Khmer OS Muol', sans-serif;
   font-weight: 400;
-  font-size: 15px;
-  line-height: 30px;
+  font-size: 18px;
+  line-height: 36px;
   color: #0A0A0A;
   text-align: center;
 }
 .company-en {
   font-family: 'Cormorant Garamond', serif;
   font-weight: 700;
-  font-size: 14px;
-  line-height: 18px;
+  font-size: 17px;
+  line-height: 21px;
   color: #0A0A0A;
   text-align: center;
 }
 .company-cn {
   font-family: 'Kantumruy Pro', sans-serif;
   font-weight: 400;
-  font-size: 11px;
-  line-height: 15px;
+  font-size: 15px;
+  line-height: 19px;
   color: #0A0A0A;
   text-align: center;
 }
 
 /* ───────────────────────────────────────────────────────────────
-   TOP-RIGHT: Telegram QR  right:14 top:6
+   TOP-RIGHT: two QR codes (ABA + Telegram)  right:24 top:10
    ─────────────────────────────────────────────────────────────── */
 .top-right-contact {
   position: absolute;
-  right: 14px;
-  top: 6px;
+  right: 24px;
+  top: 10px;
   display: flex;
   flex-direction: row;
-  gap: 6px;
+  gap: 8px;
   align-items: flex-start;
 }
 .qr-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  width: 44px;
+  gap: 3px;
+  width: 52px;
 }
 .qr-item img {
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   object-fit: cover;
   display: block;
 }
@@ -106,58 +106,67 @@ body { background: #d8d8d8; display: flex; flex-direction: column; align-items: 
   font-family: 'Kantumruy Pro', sans-serif;
   font-weight: 400;
   font-size: 7px;
-  line-height: 9px;
+  line-height: 10px;
   color: #0A0A0A;
   text-align: center;
 }
 
 /* ───────────────────────────────────────────────────────────────
-   DIVIDER LINE  left:14 top:84 width:392
+   DIVIDER LINE  left:24 top:115 width:547  (equal space above/below)
    ─────────────────────────────────────────────────────────────── */
 .header-divider {
   position: absolute;
-  left: 14px;
-  top: 84px;
-  width: 392px;
+  left: 24px;
+  top: 115px;
+  width: 547px;
   height: 0;
-  border-top: 0.5px solid rgba(10, 10, 10, 0.5);
+  border-top: 0.2px solid rgba(10, 10, 10, 0.7);
 }
 
 /* ───────────────────────────────────────────────────────────────
-   INFO BOXES  left:14 top:91 width:392
+   INFO BOXES  left:24 top:138 width:547
    ─────────────────────────────────────────────────────────────── */
 .info-section {
   position: absolute;
-  left: 14px;
-  top: 91px;
-  width: 392px;
+  left: 24px;
+  top: 138px;
+  width: 547px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
-.info-row-1, .info-row-2 {
+
+.info-row-1 {
   display: flex;
   flex-direction: row;
   gap: 6px;
   align-items: stretch;
 }
+.info-row-2 {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  align-items: stretch;
+}
+
 .info-box {
-  border: 0.5px solid rgba(10, 10, 10, 0.25);
-  padding: 4px 5px;
+  border: 0.5px solid rgba(10, 10, 10, 0.2);
+  padding: 5px;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
-.supplier-box   { width: 278px; }
-.contact-box    { width: 108px; }
-.client-box     { width: 278px; }
-.invoiceref-box { width: 108px; }
+
+.supplier-box   { width: 398px; }
+.contact-box    { width: 143px; }
+.client-box     { width: 398px; }
+.invoiceref-box { width: 143px; }
 
 .box-label {
   font-family: 'Kantumruy Pro', sans-serif;
   font-weight: 600;
-  font-size: 8.5px;
-  line-height: 11px;
+  font-size: 10px;
+  line-height: 13px;
   color: #0A0A0A;
 }
 .box-body {
@@ -169,18 +178,36 @@ body { background: #d8d8d8; display: flex; flex-direction: column; align-items: 
   display: flex;
   flex-direction: row;
   align-items: baseline;
-  gap: 3px;
+  gap: 4px;
   flex-wrap: wrap;
 }
-.name-kh, .name-en, .box-address, .box-phone {
+.name-kh {
   font-family: 'Kantumruy Pro', sans-serif;
   font-weight: 300;
-  font-size: 8.5px;
-  line-height: 11px;
+  font-size: 10px;
+  line-height: 13px;
   color: #0A0A0A;
 }
-.name-en, .box-phone {
+.name-en {
   font-family: 'Montserrat', sans-serif;
+  font-weight: 300;
+  font-size: 10px;
+  line-height: 13px;
+  color: #0A0A0A;
+}
+.box-address {
+  font-family: 'Kantumruy Pro', sans-serif;
+  font-weight: 300;
+  font-size: 10px;
+  line-height: 13px;
+  color: #0A0A0A;
+}
+.box-phone {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 300;
+  font-size: 10px;
+  line-height: 13px;
+  color: #0A0A0A;
 }
 .client-field {
   display: flex;
@@ -191,102 +218,100 @@ body { background: #d8d8d8; display: flex; flex-direction: column; align-items: 
 .field-label {
   font-family: 'Kantumruy Pro', sans-serif;
   font-weight: 600;
-  font-size: 8.5px;
-  line-height: 11px;
+  font-size: 10px;
+  line-height: 13px;
   color: #0A0A0A;
   white-space: nowrap;
 }
 .field-value {
   font-family: 'Kantumruy Pro', sans-serif;
   font-weight: 300;
-  font-size: 8.5px;
-  line-height: 11px;
+  font-size: 10px;
+  line-height: 13px;
   color: #0A0A0A;
 }
 .invoiceref-no {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Kantumruy Pro', sans-serif;
   font-weight: 600;
-  font-size: 8.5px;
-  line-height: 11px;
+  font-size: 10px;
+  line-height: 13px;
   color: #0A0A0A;
 }
 .invoiceref-date {
   font-family: 'Kantumruy Pro', sans-serif;
   font-weight: 300;
-  font-size: 8.5px;
-  line-height: 11px;
+  font-size: 10px;
+  line-height: 13px;
   color: #0A0A0A;
 }
 
 /* ───────────────────────────────────────────────────────────────
-   INVOICE TITLE  top:170
+   INVOICE TITLE  top:248  (equal ~15px space above/below)
    ─────────────────────────────────────────────────────────────── */
 .invoice-title {
   position: absolute;
   left: 0;
   right: 0;
-  top: 170px;
+  top: 248px;
   font-family: 'Montserrat', sans-serif;
   font-weight: 600;
-  font-size: 13px;
-  line-height: 17px;
+  font-size: 16px;
+  line-height: 20px;
   color: #0A0A0A;
   text-align: center;
-  letter-spacing: 0.5px;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   INVOICE TABLE  left:14 top:185 width:392
-   Columns: NO=23 + Date=55 + Desc=114 + Qty=62 + UP=68 + Total=70 = 392
+   INVOICE TABLE  left:24 top:283 width:547
+   Columns: NO=35 + Date=80 + Desc=160 + Qty=86 + UP=91 + Total=95 = 547
    ═══════════════════════════════════════════════════════════════ */
 .invoice-table {
   position: absolute;
-  left: 14px;
-  top: 185px;
-  width: 392px;
+  left: 24px;
+  top: 283px;
+  width: 547px;
   border-collapse: collapse;
   table-layout: fixed;
 }
 
-.col-no    { width: 23px; }
-.col-date  { width: 55px; }
-.col-desc  { width: 114px; }
-.col-qty   { width: 62px; }
-.col-up    { width: 68px; }
-.col-total { width: 70px; }
+.col-no    { width: 35px; }
+.col-date  { width: 80px; }
+.col-desc  { width: 160px; }
+.col-qty   { width: 86px; }
+.col-up    { width: 91px; }
+.col-total { width: 95px; }
 
 /* ── Header row ─────────────────────────────────────────────── */
 .invoice-table thead tr {
-  height: 24px;
-  background: #4a7c59;
+  height: 35px;
+  background: rgba(115, 195, 29, 0.5);
 }
 .invoice-table thead th {
-  height: 24px;
-  border: 0.5px solid #2d5a3d;
+  height: 35px;
+  border: 0.5px solid #0A0A0A;
   vertical-align: middle;
   text-align: center;
-  padding: 0 3px;
+  padding: 0 4px;
   font-family: 'Montserrat', sans-serif;
   font-weight: 600;
-  font-size: 9px;
-  line-height: 12px;
-  color: #ffffff;
+  font-size: 12px;
+  line-height: 15px;
+  color: #0A0A0A;
 }
 
 /* ── Data rows ──────────────────────────────────────────────── */
-.invoice-table tbody tr { height: 23px; }
-.invoice-table tbody tr:nth-child(even) { background: #f9fdf9; }
+.invoice-table tbody tr { height: 30px; }
 .invoice-table tbody td {
-  height: 23px;
-  border: 0.5px solid rgba(10,10,10,0.2);
+  height: 30px;
+  border: 0.5px solid #0A0A0A;
   font-family: 'Montserrat', sans-serif;
   font-weight: 400;
-  font-size: 8.5px;
-  line-height: 11px;
+  font-size: 10px;
+  line-height: 13px;
   color: #000000;
   vertical-align: middle;
   text-align: center;
-  padding: 2px 3px;
+  padding: 2px 4px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -294,95 +319,98 @@ body { background: #d8d8d8; display: flex; flex-direction: column; align-items: 
 
 .cell-no    { text-align: center; }
 .cell-date  { text-align: center; }
-.cell-desc  { text-align: left; padding-left: 4px; }
-.cell-qty   { text-align: right; padding-right: 4px; }
-.cell-up    { text-align: right; padding-right: 4px; }
-.cell-total { text-align: right; padding-right: 4px; }
-.cell-total-val { font-weight: 600; color: #2d5a3d; }
+.cell-desc  { text-align: left; padding-left: 5px; }
+.cell-qty   { text-align: right; padding-right: 5px; }
+.cell-up    { text-align: right; padding-right: 5px; }
+.cell-total { text-align: right; padding-right: 5px; }
+.cell-total-val { font-weight: 500; color: #264530; }
 
 /* ── Summary rows (tfoot) ───────────────────────────────────── */
-.invoice-table tfoot tr  { height: 21px; }
+.invoice-table tfoot tr  { height: 30px; }
 .invoice-table tfoot td  {
-  height: 21px;
-  border: 0.5px solid rgba(10,10,10,0.2);
+  height: 30px;
+  border: 0.5px solid #0A0A0A;
   vertical-align: middle;
-  padding: 2px 4px;
+  padding: 2px 6px;
   overflow: hidden;
 }
-.sum-empty { background: transparent; border-color: transparent; }
+.sum-empty { background: transparent; }
 .sum-label {
-  text-align: right;
-  font-family: 'Montserrat', sans-serif;
-  font-weight: 600;
-  font-size: 8.5px;
-  line-height: 11px;
-  color: #0A0A0A;
-}
-.sum-val {
   text-align: right;
   font-family: 'Montserrat', sans-serif;
   font-weight: 600;
   font-size: 10px;
   line-height: 13px;
-  color: #2d5a3d;
+  color: #0A0A0A;
+}
+.sum-val {
+  text-align: right;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  font-size: 12px;
+  line-height: 15px;
+  color: #264530;
 }
 .grand-total-row .sum-label,
 .grand-total-row .sum-val {
-  background: #e8f5e9;
+  background: rgba(115, 195, 29, 0.25);
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   BOTTOM SECTION  top:506  (last page only)
+   BOTTOM SECTION  top:725  (last page only — gap above matches invoice-title)
    ═══════════════════════════════════════════════════════════════ */
 
+/* ACLEDA QR  left:29 top:725 */
 .acleda-block {
   position: absolute;
-  left: 14px;
-  bottom: 8px;
-  width: 48px;
+  left: 29px;
+  top: 725px;
+  width: 60px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 3px;
 }
 .acleda-block img {
-  width: 48px;
-  height: 48px;
+  width: 60px;
+  height: 60px;
   object-fit: contain;
 }
 
+/* ABA QR  left:95 top:725  (placed next to ACLEDA) */
 .aba-block {
   position: absolute;
-  left: 68px;
-  bottom: 8px;
-  width: 48px;
+  left: 95px;
+  top: 725px;
+  width: 60px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 3px;
 }
 .aba-block img {
-  width: 48px;
-  height: 48px;
+  width: 60px;
+  height: 60px;
   object-fit: contain;
 }
 
 .qr-label {
   font-family: 'Montserrat', sans-serif;
   font-weight: 500;
-  font-size: 8px;
-  line-height: 10px;
+  font-size: 10px;
+  line-height: 13px;
   color: #0A0A0A;
   text-align: center;
 }
 
+/* Signature box  left:161 top:725 width:185 */
 .signature-box {
   position: absolute;
-  left: 122px;
-  bottom: 8px;
-  width: 130px;
-  height: 80px;
-  border: 0.5px solid rgba(10,10,10,0.3);
+  left: 161px;
+  top: 725px;
+  width: 185px;
+  height: 77px;
+  border: 0.5px solid #0A0A0A;
   padding: 5px;
   display: flex;
   flex-direction: column;
@@ -391,26 +419,27 @@ body { background: #d8d8d8; display: flex; flex-direction: column; align-items: 
 .signature-title {
   font-family: 'Kantumruy Pro', sans-serif;
   font-weight: 600;
-  font-size: 8.5px;
-  line-height: 11px;
+  font-size: 10px;
+  line-height: 13px;
   color: #0A0A0A;
 }
 .signature-date {
   font-family: 'Kantumruy Pro', sans-serif;
   font-weight: 300;
-  font-size: 8.5px;
-  line-height: 11px;
+  font-size: 10px;
+  line-height: 13px;
   color: #0A0A0A;
-  word-spacing: 6px;
+  word-spacing: 8px;
 }
 
+/* Payment date box  left:352 top:725 width:218 */
 .payment-date-box {
   position: absolute;
-  left: 258px;
-  bottom: 8px;
-  width: 148px;
-  height: 80px;
-  border: 0.5px solid rgba(10,10,10,0.3);
+  left: 352px;
+  top: 725px;
+  width: 218px;
+  height: 77px;
+  border: 0.5px solid #0A0A0A;
   padding: 5px;
   display: flex;
   flex-direction: column;
@@ -419,15 +448,15 @@ body { background: #d8d8d8; display: flex; flex-direction: column; align-items: 
 .payment-date-title {
   font-family: 'Kantumruy Pro', sans-serif;
   font-weight: 600;
-  font-size: 8.5px;
-  line-height: 11px;
+  font-size: 10px;
+  line-height: 13px;
   color: #0A0A0A;
 }
 .payment-date-value {
   font-family: 'Kantumruy Pro', sans-serif;
   font-weight: 300;
-  font-size: 8.5px;
-  line-height: 11px;
+  font-size: 10px;
+  line-height: 13px;
   color: #0A0A0A;
-  word-spacing: 6px;
+  word-spacing: 8px;
 }
