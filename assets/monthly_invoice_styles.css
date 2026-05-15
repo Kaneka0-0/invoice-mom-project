@@ -1,7 +1,7 @@
 /*
  * Monthly Invoice CSS — Panha Brick Factory (Invoice-03)
- * Canvas: 420 × 595 px  (A5 at 72 dpi)
- * All positions scaled from A4 (595×842) by factor 0.706
+ * Canvas: 559 × 794 px  (A5 at 96 dpi)
+ * All positions scaled from A4 (595×842) by factor 0.939
  */
 
 @import url('https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@300;400;500;600;700&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Cormorant+Garamond:wght@700&family=Moul&display=swap');
@@ -10,12 +10,12 @@
 body { background: #d8d8d8; display: flex; flex-direction: column; align-items: center; padding: 20px; gap: 20px; }
 
 /* ═══════════════════════════════════════════════════════════════
-   PAGE  —  A5 at 72 dpi
+   PAGE  —  A5 at 96 dpi  (559 × 794 px)
    ═══════════════════════════════════════════════════════════════ */
 .page {
   position: relative;
-  width: 420px;
-  height: 595px;
+  width: 559px;
+  height: 794px;
   background: #ffffff;
   overflow: hidden;
   flex-shrink: 0;
@@ -25,29 +25,29 @@ body { background: #d8d8d8; display: flex; flex-direction: column; align-items: 
 }
 
 /* ───────────────────────────────────────────────────────────────
-   LOGO BLOCK  left:17 top:7  width:67
+   LOGO BLOCK  left:23 top:9  width:89
    ─────────────────────────────────────────────────────────────── */
 .logo-block {
   position: absolute;
-  left: 17px;
-  top: 7px;
-  width: 67px;
+  left: 23px;
+  top: 9px;
+  width: 89px;
 }
 .logo-block img {
-  width: 67px;
+  width: 89px;
   height: auto;
   display: block;
   object-fit: contain;
 }
 
 /* ───────────────────────────────────────────────────────────────
-   COMPANY NAME BLOCK  centered, top:8
+   COMPANY NAME BLOCK  centered, top:11
    ─────────────────────────────────────────────────────────────── */
 .company-block {
   position: absolute;
-  left: calc(50% - 64px);
-  top: 8px;
-  width: 128px;
+  left: calc(50% - 84px);
+  top: 11px;
+  width: 168px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -56,50 +56,50 @@ body { background: #d8d8d8; display: flex; flex-direction: column; align-items: 
 .company-kh {
   font-family: 'Moul', 'Khmer OS Muol', sans-serif;
   font-weight: 400;
-  font-size: 13px;
-  line-height: 26px;
+  font-size: 17px;
+  line-height: 34px;
   color: #0A0A0A;
   text-align: center;
 }
 .company-en {
   font-family: 'Cormorant Garamond', serif;
   font-weight: 700;
-  font-size: 12px;
-  line-height: 15px;
+  font-size: 16px;
+  line-height: 20px;
   color: #0A0A0A;
   text-align: center;
 }
 .company-cn {
   font-family: 'Kantumruy Pro', sans-serif;
   font-weight: 400;
-  font-size: 11px;
-  line-height: 14px;
+  font-size: 14px;
+  line-height: 18px;
   color: #0A0A0A;
   text-align: center;
 }
 
 /* ───────────────────────────────────────────────────────────────
-   TOP-RIGHT: Telegram QR  right:17 top:7
+   TOP-RIGHT: Telegram QR  right:23 top:9
    ─────────────────────────────────────────────────────────────── */
 .top-right-contact {
   position: absolute;
-  right: 17px;
-  top: 7px;
+  right: 23px;
+  top: 9px;
   display: flex;
   flex-direction: row;
-  gap: 6px;
+  gap: 8px;
   align-items: flex-start;
 }
 .qr-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  width: 37px;
+  gap: 3px;
+  width: 49px;
 }
 .qr-item img {
-  width: 37px;
-  height: 37px;
+  width: 49px;
+  height: 49px;
   object-fit: cover;
   display: block;
 }
@@ -113,46 +113,46 @@ body { background: #d8d8d8; display: flex; flex-direction: column; align-items: 
 }
 
 /* ───────────────────────────────────────────────────────────────
-   DIVIDER LINE  left:17 top:81 width:386
+   DIVIDER LINE  left:23 top:108 width:513
    ─────────────────────────────────────────────────────────────── */
 .header-divider {
   position: absolute;
-  left: 17px;
-  top: 81px;
-  width: 386px;
+  left: 23px;
+  top: 108px;
+  width: 513px;
   height: 0;
   border-top: 0.2px solid rgba(10, 10, 10, 0.7);
 }
 
 /* ───────────────────────────────────────────────────────────────
-   INFO BOXES  left:17 top:97 width:386
+   INFO BOXES  left:23 top:130 width:513
    ─────────────────────────────────────────────────────────────── */
 .info-section {
   position: absolute;
-  left: 17px;
-  top: 97px;
-  width: 386px;
+  left: 23px;
+  top: 130px;
+  width: 513px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 .info-row-1, .info-row-2 {
   display: flex;
   flex-direction: row;
-  gap: 4px;
+  gap: 6px;
   align-items: stretch;
 }
 .info-box {
   border: 0.5px solid rgba(10, 10, 10, 0.2);
-  padding: 4px;
+  padding: 5px;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.supplier-box   { width: 281px; }
-.contact-box    { width: 101px; }
-.client-box     { width: 281px; }
-.invoiceref-box { width: 101px; }
+.supplier-box   { width: 374px; }
+.contact-box    { width: 133px; }
+.client-box     { width: 374px; }
+.invoiceref-box { width: 133px; }
 
 .box-label {
   font-family: 'Kantumruy Pro', sans-serif;
@@ -170,7 +170,7 @@ body { background: #d8d8d8; display: flex; flex-direction: column; align-items: 
   display: flex;
   flex-direction: row;
   align-items: baseline;
-  gap: 3px;
+  gap: 4px;
   flex-wrap: wrap;
 }
 .name-kh {
@@ -238,72 +238,72 @@ body { background: #d8d8d8; display: flex; flex-direction: column; align-items: 
 }
 
 /* ───────────────────────────────────────────────────────────────
-   INVOICE TITLE  top:175
+   INVOICE TITLE  top:233
    ─────────────────────────────────────────────────────────────── */
 .invoice-title {
   position: absolute;
   left: 0;
   right: 0;
-  top: 175px;
+  top: 233px;
   font-family: 'Montserrat', sans-serif;
   font-weight: 600;
-  font-size: 11px;
-  line-height: 14px;
+  font-size: 15px;
+  line-height: 19px;
   color: #0A0A0A;
   text-align: center;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   INVOICE TABLE  left:17 top:197 width:386
-   Columns: NO=25 + Date=56 + Desc=113 + Qty=61 + UP=64 + Total=67 = 386
+   INVOICE TABLE  left:23 top:266 width:513
+   Columns: NO=33 + Date=75 + Desc=150 + Qty=81 + UP=85 + Total=89 = 513
    ═══════════════════════════════════════════════════════════════ */
 .invoice-table {
   position: absolute;
-  left: 17px;
-  top: 197px;
-  width: 386px;
+  left: 23px;
+  top: 266px;
+  width: 513px;
   border-collapse: collapse;
   table-layout: fixed;
 }
 
-.col-no    { width: 25px; }
-.col-date  { width: 56px; }
-.col-desc  { width: 113px; }
-.col-qty   { width: 61px; }
-.col-up    { width: 64px; }
-.col-total { width: 67px; }
+.col-no    { width: 33px; }
+.col-date  { width: 75px; }
+.col-desc  { width: 150px; }
+.col-qty   { width: 81px; }
+.col-up    { width: 85px; }
+.col-total { width: 89px; }
 
 /* ── Header row ─────────────────────────────────────────────── */
 .invoice-table thead tr {
-  height: 25px;
+  height: 33px;
   background: rgba(115, 195, 29, 0.5);
 }
 .invoice-table thead th {
-  height: 25px;
+  height: 33px;
   border: 0.5px solid #0A0A0A;
   vertical-align: middle;
   text-align: center;
-  padding: 0 3px;
+  padding: 0 4px;
   font-family: 'Montserrat', sans-serif;
   font-weight: 600;
-  font-size: 9px;
-  line-height: 11px;
+  font-size: 11px;
+  line-height: 14px;
   color: #0A0A0A;
 }
 
 /* ── Data rows ──────────────────────────────────────────────── */
-.invoice-table tbody tr { height: 21px; }
+.invoice-table tbody tr { height: 28px; }
 .invoice-table tbody td {
-  height: 21px;
+  height: 28px;
   border: 0.5px solid #0A0A0A;
   font-family: 'Montserrat', sans-serif;
   font-weight: 400;
-  font-size: 8px;
-  line-height: 10px;
+  font-size: 9px;
+  line-height: 12px;
   color: #000000;
   vertical-align: middle;
   text-align: center;
-  padding: 1px 3px;
+  padding: 2px 4px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -311,19 +311,19 @@ body { background: #d8d8d8; display: flex; flex-direction: column; align-items: 
 
 .cell-no    { text-align: center; }
 .cell-date  { text-align: center; }
-.cell-desc  { text-align: left; padding-left: 4px; }
-.cell-qty   { text-align: right; padding-right: 4px; }
-.cell-up    { text-align: right; padding-right: 4px; }
-.cell-total { text-align: right; padding-right: 4px; }
+.cell-desc  { text-align: left; padding-left: 5px; }
+.cell-qty   { text-align: right; padding-right: 5px; }
+.cell-up    { text-align: right; padding-right: 5px; }
+.cell-total { text-align: right; padding-right: 5px; }
 .cell-total-val { font-weight: 500; color: #264530; }
 
 /* ── Summary rows (tfoot) ───────────────────────────────────── */
-.invoice-table tfoot tr  { height: 21px; }
+.invoice-table tfoot tr  { height: 28px; }
 .invoice-table tfoot td  {
-  height: 21px;
+  height: 28px;
   border: 0.5px solid #0A0A0A;
   vertical-align: middle;
-  padding: 1px 4px;
+  padding: 2px 6px;
   overflow: hidden;
 }
 .sum-empty { background: transparent; }
@@ -331,16 +331,16 @@ body { background: #d8d8d8; display: flex; flex-direction: column; align-items: 
   text-align: right;
   font-family: 'Montserrat', sans-serif;
   font-weight: 600;
-  font-size: 8px;
-  line-height: 10px;
+  font-size: 9px;
+  line-height: 12px;
   color: #0A0A0A;
 }
 .sum-val {
   text-align: right;
   font-family: 'Montserrat', sans-serif;
   font-weight: 500;
-  font-size: 9px;
-  line-height: 11px;
+  font-size: 11px;
+  line-height: 14px;
   color: #264530;
 }
 .grand-total-row .sum-label,
@@ -349,102 +349,102 @@ body { background: #d8d8d8; display: flex; flex-direction: column; align-items: 
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   BOTTOM SECTION  top:512  (last page only)
+   BOTTOM SECTION  top:681  (last page only)
    ═══════════════════════════════════════════════════════════════ */
 
 .acleda-block {
   position: absolute;
-  left: 20px;
-  top: 512px;
-  width: 42px;
+  left: 27px;
+  top: 681px;
+  width: 56px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
 }
 .acleda-block img {
-  width: 42px;
-  height: 42px;
+  width: 56px;
+  height: 56px;
   object-fit: contain;
 }
 
 .aba-block {
   position: absolute;
-  left: 67px;
-  top: 512px;
-  width: 42px;
+  left: 89px;
+  top: 681px;
+  width: 56px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
 }
 .aba-block img {
-  width: 42px;
-  height: 42px;
+  width: 56px;
+  height: 56px;
   object-fit: contain;
 }
 
 .qr-label {
   font-family: 'Montserrat', sans-serif;
   font-weight: 500;
-  font-size: 8px;
-  line-height: 10px;
+  font-size: 9px;
+  line-height: 12px;
   color: #0A0A0A;
   text-align: center;
 }
 
 .signature-box {
   position: absolute;
-  left: 114px;
-  top: 512px;
-  width: 131px;
-  height: 54px;
+  left: 151px;
+  top: 681px;
+  width: 174px;
+  height: 72px;
   border: 0.5px solid #0A0A0A;
-  padding: 4px;
+  padding: 5px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 .signature-title {
   font-family: 'Kantumruy Pro', sans-serif;
   font-weight: 600;
-  font-size: 8px;
-  line-height: 10px;
+  font-size: 9px;
+  line-height: 12px;
   color: #0A0A0A;
 }
 .signature-date {
   font-family: 'Kantumruy Pro', sans-serif;
   font-weight: 300;
-  font-size: 8px;
-  line-height: 10px;
+  font-size: 9px;
+  line-height: 12px;
   color: #0A0A0A;
-  word-spacing: 6px;
+  word-spacing: 8px;
 }
 
 .payment-date-box {
   position: absolute;
-  left: 249px;
-  top: 512px;
-  width: 154px;
-  height: 54px;
+  left: 331px;
+  top: 681px;
+  width: 205px;
+  height: 72px;
   border: 0.5px solid #0A0A0A;
-  padding: 4px;
+  padding: 5px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 .payment-date-title {
   font-family: 'Kantumruy Pro', sans-serif;
   font-weight: 600;
-  font-size: 8px;
-  line-height: 10px;
+  font-size: 9px;
+  line-height: 12px;
   color: #0A0A0A;
 }
 .payment-date-value {
   font-family: 'Kantumruy Pro', sans-serif;
   font-weight: 300;
-  font-size: 8px;
-  line-height: 10px;
+  font-size: 9px;
+  line-height: 12px;
   color: #0A0A0A;
-  word-spacing: 6px;
+  word-spacing: 8px;
 }
