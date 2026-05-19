@@ -20,7 +20,7 @@ class InvoiceViewScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
-        final s       = provider.s;
+        final s = provider.s;
         final invoice = provider.store.findInvoice(id);
 
         if (invoice == null) {
@@ -30,11 +30,12 @@ class InvoiceViewScreen extends StatelessWidget {
           );
         }
 
-        final client  = provider.store.findClient(invoice.clientId ?? '');
-        final fmt     = NumberFormat('#,##0.00');
-        final intFmt  = NumberFormat('#,###');
+        final client = provider.store.findClient(invoice.clientId ?? '');
+        final fmt = NumberFormat('#,##0.00');
+        final intFmt = NumberFormat('#,###');
         final dateFmt = DateFormat('dd MMM yyyy');
-        final sym     = provider.settings.currencySymbol;
+        final sym = provider.settings.currencySymbol;
+        final invoiceTotal = invoice.items.fold(0.0, (s, i) => s + i.quantity * i.unitPrice);
 
         String dateStr = invoice.date;
         try {
@@ -60,17 +61,14 @@ class InvoiceViewScreen extends StatelessWidget {
                           child: Row(
                             children: [
                               IconButton(
-                                icon: const Icon(
-                                    Icons.arrow_back_ios_new_rounded,
-                                    size: 18,
-                                    color: Color(0xFF0B2218)),
+                                icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                                    size: 18, color: Color(0xFF0B2218)),
                                 onPressed: () => context.go('/invoices'),
                               ),
                               const Spacer(),
                               _ActionBtn(
                                 icon: Icons.edit_outlined,
-                                onTap: () =>
-                                    context.push('/invoices/$id/edit'),
+                                onTap: () => context.push('/invoices/$id/edit'),
                               ),
                               const SizedBox(width: 8),
                               _ActionBtn(
@@ -79,7 +77,7 @@ class InvoiceViewScreen extends StatelessWidget {
                                   context,
                                   invoice: invoice,
                                   client: client,
-                                  brickTypes: provider.brickTypes,
+
                                   settings: provider.settings,
                                 ),
                               ),
@@ -101,12 +99,9 @@ class InvoiceViewScreen extends StatelessWidget {
                         ),
                         if (client != null)
                           Padding(
-                            padding:
-                                const EdgeInsets.fromLTRB(20, 3, 20, 0),
+                            padding: const EdgeInsets.fromLTRB(20, 3, 20, 0),
                             child: Text(client.name,
-                                style: const TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.muted)),
+                                style: const TextStyle(fontSize: 13, color: AppColors.muted)),
                           ),
                         // Amount + date strip
                         Padding(
@@ -114,16 +109,13 @@ class InvoiceViewScreen extends StatelessWidget {
                           child: Row(
                             children: [
                               Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text('Total Amount',
-                                      style: TextStyle(
-                                          fontSize: 11,
-                                          color: AppColors.muted)),
+                                      style: TextStyle(fontSize: 11, color: AppColors.muted)),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '$sym${fmt.format(invoice.total)}',
+                                    '$sym${fmt.format(invoiceTotal)}',
                                     style: const TextStyle(
                                       fontSize: 28,
                                       fontWeight: FontWeight.w800,
@@ -135,15 +127,12 @@ class InvoiceViewScreen extends StatelessWidget {
                               ),
                               const Spacer(),
                               Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.end,
+                                crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   _StatusPill(invoice.status.name),
                                   const SizedBox(height: 6),
                                   Text(dateStr,
-                                      style: const TextStyle(
-                                          fontSize: 12,
-                                          color: AppColors.muted)),
+                                      style: const TextStyle(fontSize: 12, color: AppColors.muted)),
                                 ],
                               ),
                             ],
@@ -177,9 +166,7 @@ class InvoiceViewScreen extends StatelessWidget {
                               ),
                               alignment: Alignment.center,
                               child: Text(
-                                client.name.isNotEmpty
-                                    ? client.name[0].toUpperCase()
-                                    : '?',
+                                client.name.isNotEmpty ? client.name[0].toUpperCase() : '?',
                                 style: const TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.w800,
@@ -205,8 +192,7 @@ class InvoiceViewScreen extends StatelessWidget {
                                       const SizedBox(width: 4),
                                       Text(client.phone,
                                           style: const TextStyle(
-                                              fontSize: 12,
-                                              color: AppColors.muted)),
+                                              fontSize: 12, color: AppColors.muted)),
                                     ]),
                                   ],
                                   if (client.address.isNotEmpty) ...[
@@ -218,8 +204,7 @@ class InvoiceViewScreen extends StatelessWidget {
                                       Expanded(
                                         child: Text(client.address,
                                             style: const TextStyle(
-                                                fontSize: 12,
-                                                color: AppColors.muted)),
+                                                fontSize: 12, color: AppColors.muted)),
                                       ),
                                     ]),
                                   ],
@@ -230,9 +215,7 @@ class InvoiceViewScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 const Text('Date',
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        color: AppColors.muted)),
+                                    style: TextStyle(fontSize: 11, color: AppColors.muted)),
                                 const SizedBox(height: 3),
                                 Text(dateStr,
                                     style: const TextStyle(
@@ -276,16 +259,13 @@ class InvoiceViewScreen extends StatelessWidget {
                             color: const Color(0xFFF8FAF9),
                             borderRadius: BorderRadius.circular(10),
                             border: const Border(
-                              left: BorderSide(
-                                  color: Color(0xFF0B2218), width: 3),
+                              left: BorderSide(color: Color(0xFF0B2218), width: 3),
                             ),
                           ),
                           child: Text(
                             invoice.notes,
                             style: const TextStyle(
-                                fontSize: 13.5,
-                                color: AppColors.slate,
-                                height: 1.5),
+                                fontSize: 13.5, color: AppColors.slate, height: 1.5),
                           ),
                         ),
                       ),
@@ -300,7 +280,6 @@ class InvoiceViewScreen extends StatelessWidget {
                         context,
                         invoice: invoice,
                         client: client,
-                        brickTypes: provider.brickTypes,
                         settings: provider.settings,
                       ),
                       onEdit: () => context.push('/invoices/$id/edit'),
@@ -320,21 +299,19 @@ class InvoiceViewScreen extends StatelessWidget {
     BuildContext context, {
     required Invoice invoice,
     required Client? client,
-    required List<BrickType> brickTypes,
     required AppSettings settings,
   }) async {
     if (kIsWeb) {
       await InvoiceHtmlService.download(
         invoice: invoice,
         client: client,
-        brickTypes: brickTypes,
         settings: settings,
       );
     } else {
       final bytes = await PdfService.generateInvoice(
         invoice: invoice,
         client: client,
-        brickTypes: brickTypes,
+        brickTypes: const [],
         settings: settings,
       );
       if (context.mounted) {
@@ -383,8 +360,7 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = status[0].toUpperCase() +
-        status.substring(1).replaceAll('_', ' ');
+    final label = status[0].toUpperCase() + status.substring(1).replaceAll('_', ' ');
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
@@ -392,10 +368,7 @@ class _StatusPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(label,
-          style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: statusColor(status))),
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: statusColor(status))),
     );
   }
 }
@@ -458,9 +431,7 @@ class _HeroHeader extends StatelessWidget {
                         Text(
                           dateStr,
                           style: const TextStyle(
-                              color: Color(0xFF86EFAC),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500),
+                              color: Color(0xFF86EFAC), fontSize: 12, fontWeight: FontWeight.w500),
                         ),
                       ],
                     ),
@@ -484,9 +455,7 @@ class _HeroHeader extends StatelessWidget {
                 const Text(
                   'Total Amount',
                   style: TextStyle(
-                      color: Color(0xFFBBF7D0),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500),
+                      color: Color(0xFFBBF7D0), fontSize: 13, fontWeight: FontWeight.w500),
                 ),
                 Text(
                   '$sym${fmt.format(invoice.total)}',
@@ -521,8 +490,7 @@ class _StatusBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: const TextStyle(
-            color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -568,8 +536,7 @@ class _SectionCard extends StatelessWidget {
                     color: const Color(0xFF0B2218).withAlpha(15),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(icon,
-                      size: 15, color: const Color(0xFF0B2218)),
+                  child: Icon(icon, size: 15, color: const Color(0xFF0B2218)),
                 ),
                 const SizedBox(width: 10),
                 Text(
@@ -622,9 +589,7 @@ class _InfoRow extends StatelessWidget {
           const SizedBox(width: 10),
           SizedBox(
             width: 72,
-            child: Text(label,
-                style: const TextStyle(
-                    fontSize: 12.5, color: AppColors.muted)),
+            child: Text(label, style: const TextStyle(fontSize: 12.5, color: AppColors.muted)),
           ),
           Expanded(
             child: Text(
@@ -662,12 +627,12 @@ class _ItemsTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final computedTotal = invoice.items.fold(0.0, (s, i) => s + i.quantity * i.unitPrice);
     return Column(
       children: [
         // Header
         Container(
-          padding:
-              const EdgeInsets.symmetric(vertical: 9, horizontal: 12),
+          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 12),
           decoration: BoxDecoration(
             color: const Color(0xFF0B2218),
             borderRadius: BorderRadius.circular(10),
@@ -679,11 +644,9 @@ class _ItemsTable extends StatelessWidget {
                 flex: 3,
                 child: Text('Brick Type',
                     style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600)),
+                        fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600)),
               ),
-              _HeaderCell('Qty'),
+              const _HeaderCell('ចំនួន'),
               _HeaderCell('Price'),
               _HeaderCell('Total', last: true),
             ],
@@ -708,8 +671,7 @@ class _ItemsTable extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: const Color(0xFF0B2218).withAlpha(15),
                 borderRadius: BorderRadius.circular(8),
@@ -722,7 +684,7 @@ class _ItemsTable extends StatelessWidget {
                       letterSpacing: 0.6)),
             ),
             Text(
-              '$sym${fmt.format(invoice.total)}',
+              '$sym${fmt.format(computedTotal)}',
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
@@ -740,7 +702,7 @@ class _ItemsTable extends StatelessWidget {
           ),
           _TotalRow(
             label: 'Balance',
-            value: '$sym${fmt.format(invoice.total - invoice.deposit)}',
+            value: '$sym${fmt.format(computedTotal - invoice.deposit)}',
             bold: true,
           ),
         ],
@@ -760,10 +722,7 @@ class _HeaderCell extends StatelessWidget {
       width: last ? 70 : 60,
       child: Text(text,
           textAlign: TextAlign.right,
-          style: const TextStyle(
-              fontSize: 11,
-              color: Colors.white,
-              fontWeight: FontWeight.w600)),
+          style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -771,7 +730,7 @@ class _HeaderCell extends StatelessWidget {
 String _brickName(String priceType, String category, bool isKh) {
   if (isKh) {
     final t = priceType == 'burned' ? 'ឥដ្ឋខ្លោច' : 'ឥដ្ឋធម្មតា';
-    final c = category == 'sol' ? 'ពាន់' : 'ប្រហោង';
+    final c = category == 'sol' ? 'ចំនួន' : 'ប្រហោង';
     return '$t $c';
   }
   final t = priceType == 'burned' ? 'Burnt' : 'Normal';
@@ -800,17 +759,14 @@ class _ItemRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final typeColor = item.priceType == 'normal'
-        ? const Color(0xFF059669)
-        : const Color(0xFFD97706);
+    final priceFmt = NumberFormat('#,##0.000');
+    final typeColor =
+        item.priceType == 'normal' ? const Color(0xFF059669) : const Color(0xFFD97706);
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
       decoration: BoxDecoration(
-        border: isLast
-            ? null
-            : const Border(
-                bottom: BorderSide(color: Color(0xFFF3F4F6))),
+        border: isLast ? null : const Border(bottom: BorderSide(color: Color(0xFFF3F4F6))),
       ),
       child: Row(
         children: [
@@ -827,9 +783,7 @@ class _ItemRow extends StatelessWidget {
               child: Text(
                 '${idx + 1}',
                 style: const TextStyle(
-                    fontSize: 10,
-                    color: Color(0xFF0B2218),
-                    fontWeight: FontWeight.w700),
+                    fontSize: 10, color: Color(0xFF0B2218), fontWeight: FontWeight.w700),
               ),
             ),
           ),
@@ -849,9 +803,7 @@ class _ItemRow extends StatelessWidget {
                 Text(
                   _brickName(item.priceType, item.brickCategory, isKh),
                   style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF0D1F17),
-                      fontWeight: FontWeight.w500),
+                      fontSize: 13, color: Color(0xFF0D1F17), fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -861,23 +813,21 @@ class _ItemRow extends StatelessWidget {
             child: Text(
               intFmt.format(item.quantity),
               textAlign: TextAlign.right,
-              style: const TextStyle(
-                  fontSize: 12.5, color: AppColors.slate),
+              style: const TextStyle(fontSize: 12.5, color: AppColors.slate),
             ),
           ),
           SizedBox(
             width: 60,
             child: Text(
-              '$sym${fmt.format(item.unitPrice)}',
+              '$sym${priceFmt.format(item.unitPrice)}',
               textAlign: TextAlign.right,
-              style: const TextStyle(
-                  fontSize: 12.5, color: AppColors.slate),
+              style: const TextStyle(fontSize: 12.5, color: AppColors.slate),
             ),
           ),
           SizedBox(
             width: 70,
             child: Text(
-              '$sym${fmt.format(item.total)}',
+              '$sym${fmt.format(item.quantity * item.unitPrice)}',
               textAlign: TextAlign.right,
               style: const TextStyle(
                 fontSize: 13,
@@ -945,14 +895,12 @@ class _ActionButtons extends StatelessWidget {
           child: FilledButton.icon(
             onPressed: onPrint,
             icon: const Icon(Icons.picture_as_pdf_outlined, size: 17),
-            label: Text(s.print,
-                style: const TextStyle(fontWeight: FontWeight.w700)),
+            label: Text(s.print, style: const TextStyle(fontWeight: FontWeight.w700)),
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF0B2218),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
           ),
         ),
@@ -996,9 +944,7 @@ class _SecondaryBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = danger ? AppColors.danger : const Color(0xFF0B2218);
-    final bg    = danger
-        ? AppColors.danger.withAlpha(12)
-        : const Color(0xFF0B2218).withAlpha(10);
+    final bg = danger ? AppColors.danger.withAlpha(12) : const Color(0xFF0B2218).withAlpha(10);
 
     return Material(
       color: bg,
@@ -1013,10 +959,7 @@ class _SecondaryBtn extends StatelessWidget {
               Icon(icon, size: 20, color: color),
               const SizedBox(height: 4),
               Text(label,
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: color)),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
             ],
           ),
         ),

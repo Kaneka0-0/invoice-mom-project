@@ -3,9 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../../../providers/app_provider.dart';
 import '../../../models/models.dart';
+import '../../../providers/app_provider.dart';
 import '../../../services/invoice_html_service.dart';
+import '../../../services/supabase_service.dart';
 import '../../../theme.dart';
 import '../../../widgets/common_widgets.dart';
 
@@ -20,6 +21,15 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
   String _search = '';
   String? _monthFilter;
   String? _clientFilter;
+  bool _generalFilter = false;
+  bool _tableView     = false;
+  late final Stream<List<Invoice>> _invoicesStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _invoicesStream = SupabaseSync.invoicesStream();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,17 +38,21 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         final s   = provider.s;
         final sym = provider.settings.currencySymbol;
 
-        final filtered = provider.invoices.where((inv) {
-          final client = provider.store.findClient(inv.clientId);
-          final matchSearch = _search.isEmpty ||
-              inv.number.toLowerCase().contains(_search.toLowerCase()) ||
-              (client?.name.toLowerCase().contains(_search.toLowerCase()) ?? false);
-          final matchMonth  = _monthFilter == null || inv.date.startsWith(_monthFilter!);
-          final matchClient = _clientFilter == null || inv.clientId == _clientFilter;
-          return matchSearch && matchMonth && matchClient;
-        }).toList();
+        return StreamBuilder<List<Invoice>>(
+          stream: _invoicesStream,
+          builder: (context, snapshot) {
+            final filtered = (snapshot.data ?? provider.invoices).where((inv) {
+              final client = provider.store.findClient(inv.clientId);
+              final matchSearch = _search.isEmpty ||
+                  inv.number.toLowerCase().contains(_search.toLowerCase()) ||
+                  (client?.name.toLowerCase().contains(_search.toLowerCase()) ?? false);
+              final matchMonth   = _monthFilter == null || inv.date.startsWith(_monthFilter!);
+              final matchClient  = _clientFilter == null || inv.clientId == _clientFilter;
+              final matchGeneral = !_generalFilter || (inv.clientId == null || inv.clientId!.isEmpty);
+              return matchSearch && matchMonth && matchClient && matchGeneral;
+            }).toList();
 
-        return Scaffold(
+            return Scaffold(
           backgroundColor: const Color(0xFFF4F4F5),
           body: Column(
             children: [
@@ -53,7 +67,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Expanded(
                               child: Column(
@@ -75,6 +89,25 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                                         fontSize: 13, color: AppColors.muted),
                                   ),
                                 ],
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () => setState(() => _tableView = !_tableView),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: _tableView
+                                      ? const Color(0xFF0B2218)
+                                      : const Color(0xFFE5E7EB),
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                                child: Icon(
+                                  _tableView
+                                      ? Icons.table_rows_rounded
+                                      : Icons.grid_view_rounded,
+                                  size: 17,
+                                  color: _tableView ? Colors.white : AppColors.muted,
+                                ),
                               ),
                             ),
                           ],
@@ -105,7 +138,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                           onChanged: (v) => setState(() => _search = v),
                         ),
                         const SizedBox(height: 10),
-                        // Month + Client filters
+                        // Month + General + Client filters
                         Row(
                           children: [
                             _MonthButton(
@@ -118,12 +151,22 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                                   : null,
                             ),
                             const SizedBox(width: 8),
+                            _GeneralButton(
+                              active: _generalFilter,
+                              onTap: () => setState(() {
+                                _generalFilter = !_generalFilter;
+                                if (_generalFilter) _clientFilter = null;
+                              }),
+                            ),
+                            const SizedBox(width: 8),
                             if (provider.clients.isNotEmpty)
                               _ClientFilterDropdown(
                                 clients: provider.clients,
                                 selectedId: _clientFilter,
-                                onChanged: (id) =>
-                                    setState(() => _clientFilter = id),
+                                onChanged: (id) => setState(() {
+                                  _clientFilter = id;
+                                  if (id != null) _generalFilter = false;
+                                }),
                               ),
                           ],
                         ),
@@ -172,69 +215,69 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                           onAction: () => context.push('/invoices/new'),
                         ),
                       )
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-                        itemCount: (filtered.length / 2).ceil(),
-                        itemBuilder: (ctx, rowIdx) {
-                          final i    = rowIdx * 2;
-                          final inv1 = filtered[i];
-                          final cl1  = provider.store.findClient(inv1.clientId);
-                          final inv2 = (i + 1 < filtered.length) ? filtered[i + 1] : null;
-                          final cl2  = inv2 != null ? provider.store.findClient(inv2.clientId) : null;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: _InvoiceCard(
-                                    invoice:    inv1,
-                                    clientName: cl1?.name ?? '—',
-                                    sym:        sym,
-                                    onTap: () => InvoiceHtmlService.download(
-                                      invoice:    inv1,
-                                      client:     cl1,
-                                      settings:   provider.settings,
-                                      editPath:   '/invoices/${inv1.id}/edit',
-                                    ),
-                                    onDelete: () async {
-                                      final ok = await showDeleteDialog(ctx,
-                                          itemName: 'Invoice');
-                                      if (ok && ctx.mounted) {
-                                        await provider.deleteInvoice(inv1.id);
-                                      }
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 14),
-                                if (inv2 != null)
-                                  Expanded(
-                                    child: _InvoiceCard(
-                                      invoice:    inv2,
-                                      clientName: cl2?.name ?? '—',
-                                      sym:        sym,
-                                      onTap: () => InvoiceHtmlService.download(
-                                        invoice:    inv2,
-                                        client:     cl2,
-                                        settings:   provider.settings,
-                                        editPath:   '/invoices/${inv2.id}/edit',
+                    : _tableView
+                        ? _InvoiceTableBody(
+                            invoices: filtered,
+                            provider: provider,
+                            sym: sym,
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+                            itemCount: (filtered.length / 2).ceil(),
+                            itemBuilder: (ctx, rowIdx) {
+                              final i    = rowIdx * 2;
+                              final inv1 = filtered[i];
+                              final cl1  = provider.store.findClient(inv1.clientId);
+                              final inv2 = (i + 1 < filtered.length) ? filtered[i + 1] : null;
+                              final cl2  = inv2 != null ? provider.store.findClient(inv2.clientId) : null;
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 14),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: _InvoiceCard(
+                                        invoice:    inv1,
+                                        clientName: cl1?.name ?? '—',
+                                        sym:        sym,
+                                        onTap: () => InvoiceHtmlService.download(
+                                          invoice:    provider.store.findInvoice(inv1.id) ?? inv1,
+                                          client:     cl1,
+                                          settings:   provider.settings,
+                                          editPath:   '/invoices/${inv1.id}/edit',
+                                        ),
+                                        onDelete: () async {
+                                          final ok = await showDeleteDialog(ctx, itemName: 'Invoice');
+                                          if (ok && ctx.mounted) await provider.deleteInvoice(inv1.id);
+                                        },
                                       ),
-                                      onDelete: () async {
-                                        final ok = await showDeleteDialog(ctx,
-                                            itemName: 'Invoice');
-                                        if (ok && ctx.mounted) {
-                                          await provider.deleteInvoice(inv2.id);
-                                        }
-                                      },
                                     ),
-                                  )
-                                else
-                                  const Expanded(child: SizedBox()),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
+                                    const SizedBox(width: 14),
+                                    if (inv2 != null)
+                                      Expanded(
+                                        child: _InvoiceCard(
+                                          invoice:    inv2,
+                                          clientName: cl2?.name ?? '—',
+                                          sym:        sym,
+                                          onTap: () => InvoiceHtmlService.download(
+                                            invoice:    provider.store.findInvoice(inv2.id) ?? inv2,
+                                            client:     cl2,
+                                            settings:   provider.settings,
+                                            editPath:   '/invoices/${inv2.id}/edit',
+                                          ),
+                                          onDelete: () async {
+                                            final ok = await showDeleteDialog(ctx, itemName: 'Invoice');
+                                            if (ok && ctx.mounted) await provider.deleteInvoice(inv2.id);
+                                          },
+                                        ),
+                                      )
+                                    else
+                                      const Expanded(child: SizedBox()),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
               ),
             ],
           ),
@@ -245,18 +288,21 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
             child: const Icon(Icons.add),
           ),
         );
+          },
+        );
       },
     );
   }
 
   bool get _hasActiveFilter =>
-      _monthFilter != null || _clientFilter != null || _search.isNotEmpty;
+      _monthFilter != null || _clientFilter != null || _search.isNotEmpty || _generalFilter;
 
   void _clearFilters() {
     setState(() {
-      _search       = '';
-      _monthFilter  = null;
-      _clientFilter = null;
+      _search         = '';
+      _monthFilter    = null;
+      _clientFilter   = null;
+      _generalFilter  = false;
     });
   }
 
@@ -335,6 +381,47 @@ class _MonthButton extends StatelessWidget {
                     size: 13, color: Colors.white),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── General filter button ─────────────────────────────────────────────────────
+class _GeneralButton extends StatelessWidget {
+  final bool active;
+  final VoidCallback onTap;
+  const _GeneralButton({required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFF0B2218) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: active ? const Color(0xFF0B2218) : const Color(0xFFE5E7EB),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.person_off_outlined,
+                size: 14,
+                color: active ? Colors.white : AppColors.muted),
+            const SizedBox(width: 5),
+            Text(
+              'General',
+              style: TextStyle(
+                fontSize: 12,
+                color: active ? Colors.white : AppColors.slate,
+                fontWeight: active ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
           ],
         ),
       ),
@@ -739,3 +826,124 @@ class _DropdownOption extends StatelessWidget {
     );
   }
 }
+
+// ── Table view for invoice list ───────────────────────────────────────────────
+
+class _InvoiceTableBody extends StatelessWidget {
+  final List<Invoice> invoices;
+  final AppProvider provider;
+  final String sym;
+
+  const _InvoiceTableBody({
+    required this.invoices,
+    required this.provider,
+    required this.sym,
+  });
+
+  static const _colW  = [2.0, 2.2, 1.8, 1.5];
+  static const _heads = ['CLIENT', 'INVOICE NO', 'DATE', 'AMOUNT'];
+  static final _fmt   = NumberFormat('#,##0.00');
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (ctx, box) {
+      final total = _colW.fold(0.0, (a, b) => a + b);
+      final ws    = _colW.map((w) => w / total * box.maxWidth).toList();
+
+      return Column(
+        children: [
+          // Header
+          Container(
+            color: const Color(0xFFF9FAFB),
+            child: Row(
+              children: List.generate(_heads.length, (i) => SizedBox(
+                width: ws[i],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                  child: Text(
+                    _heads[i],
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF6B7280),
+                      letterSpacing: 0.4,
+                    ),
+                    textAlign: i == _heads.length - 1 ? TextAlign.right : TextAlign.left,
+                  ),
+                ),
+              )),
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFFE5E7EB)),
+          // Rows
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.only(bottom: 80),
+              itemCount: invoices.length,
+              separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFE5E7EB)),
+              itemBuilder: (ctx, i) {
+                final inv    = invoices[i];
+                final client = provider.store.findClient(inv.clientId);
+                String date  = '';
+                try { date = DateFormat('dd MMM yyyy').format(DateTime.parse(inv.date)); } catch (_) {}
+                final tot    = inv.total;
+
+                return GestureDetector(
+                  onTap: () => InvoiceHtmlService.download(
+                    invoice:  provider.store.findInvoice(inv.id) ?? inv,
+                    client:   client,
+                    settings: provider.settings,
+                    editPath: '/invoices/${inv.id}/edit',
+                  ),
+                  child: Container(
+                    color: Colors.white,
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: ws[0],
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            child: Text(client?.name ?? '—',
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0D1F17)),
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
+                        ),
+                        SizedBox(
+                          width: ws[1],
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            child: Text(inv.number,
+                                style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
+                        ),
+                        SizedBox(
+                          width: ws[2],
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            child: Text(date,
+                                style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                          ),
+                        ),
+                        SizedBox(
+                          width: ws[3],
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            child: Text('$sym${_fmt.format(tot)}',
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0B2218)),
+                                textAlign: TextAlign.right),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      );
+    });
+  }
+}
+

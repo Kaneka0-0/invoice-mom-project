@@ -67,7 +67,6 @@ class HomeScreen extends StatelessWidget {
                       store: store,
                       sym: sym,
                       fmt: fmt,
-                      isKh: provider.isKh,
                       s: s,
                     ),
                   ),
@@ -454,7 +453,6 @@ class _InvoiceGrid extends StatelessWidget {
   final dynamic store;
   final String sym;
   final NumberFormat fmt;
-  final bool isKh;
   final dynamic s;
 
   const _InvoiceGrid({
@@ -462,7 +460,6 @@ class _InvoiceGrid extends StatelessWidget {
     required this.store,
     required this.sym,
     required this.fmt,
-    required this.isKh,
     required this.s,
   });
 
@@ -490,8 +487,7 @@ class _InvoiceGrid extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     'Recent invoices and their status',
-                    style: GoogleFonts.inter(
-                        fontSize: 13, color: AppColors.muted),
+                    style: GoogleFonts.inter(fontSize: 13, color: AppColors.muted),
                   ),
                 ],
               ),
@@ -526,183 +522,71 @@ class _InvoiceGrid extends StatelessWidget {
             ),
           )
         else
-          LayoutBuilder(builder: (ctx, box) {
-            final cols = box.maxWidth > 580 ? 2 : 1;
-            return _GridLayout(
-              invoices: invoices,
-              store: store,
-              sym: sym,
-              fmt: fmt,
-              isKh: isKh,
-              cols: cols,
-            );
-          }),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: invoices.asMap().entries.map((e) {
+                final inv    = e.value;
+                final isLast = e.key == invoices.length - 1;
+                final client = store.findClient(inv.clientId);
+                String date  = '';
+                try { date = DateFormat('dd MMM yyyy').format(DateTime.parse(inv.date)); } catch (_) {}
+                final total  = inv.items.fold(0.0, (s, i) => s + i.quantity * i.unitPrice);
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      leading: CircleAvatar(
+                        backgroundColor: const Color(0xFF0B2218).withAlpha(18),
+                        child: Text(
+                          (client?.name ?? inv.number).isNotEmpty
+                              ? (client?.name ?? inv.number)[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                            color: Color(0xFF0B2218),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        client?.name ?? '—',
+                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ink),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        '${inv.number}  ·  $date',
+                        style: GoogleFonts.inter(fontSize: 12, color: AppColors.muted),
+                      ),
+                      trailing: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text('$sym${fmt.format(total)}',
+                              style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.ink)),
+                          Text('${inv.items.length} item${inv.items.length != 1 ? 's' : ''}',
+                              style: GoogleFonts.inter(fontSize: 11, color: AppColors.muted)),
+                        ],
+                      ),
+                      onTap: () => context.push('/invoices/${inv.id}/edit'),
+                    ),
+                    if (!isLast)
+                      const Divider(height: 1, indent: 64, color: Color(0xFFE5E7EB)),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
       ],
     );
   }
 }
 
-class _GridLayout extends StatelessWidget {
-  final List<Invoice> invoices;
-  final dynamic store;
-  final String sym;
-  final NumberFormat fmt;
-  final bool isKh;
-  final int cols;
 
-  const _GridLayout({
-    required this.invoices,
-    required this.store,
-    required this.sym,
-    required this.fmt,
-    required this.isKh,
-    required this.cols,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final rows = <Widget>[];
-    for (int i = 0; i < invoices.length; i += cols) {
-      final cells = <Widget>[];
-      for (int j = 0; j < cols; j++) {
-        final idx = i + j;
-        if (idx < invoices.length) {
-          final inv    = invoices[idx];
-          final client = store.findClient(inv.clientId);
-          cells.add(Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(left: j > 0 ? 14 : 0),
-              child: _InvoiceCard(
-                invoice:    inv,
-                clientName: client?.name ?? '—',
-                sym:        sym,
-                fmt:        fmt,
-                onTap:      () => context.push('/invoices/${inv.id}/edit'),
-              ),
-            ),
-          ));
-        } else {
-          cells.add(const Expanded(child: SizedBox()));
-        }
-      }
-      rows.add(Padding(
-        padding: EdgeInsets.only(
-            bottom: i + cols < invoices.length ? 14 : 0),
-        child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: cells),
-      ));
-    }
-    return Column(children: rows);
-  }
-}
-
-// ── Invoice card ──────────────────────────────────────────────────────────────
-
-class _InvoiceCard extends StatelessWidget {
-  final Invoice invoice;
-  final String clientName;
-  final String sym;
-  final NumberFormat fmt;
-  final VoidCallback onTap;
-
-  const _InvoiceCard({
-    required this.invoice,
-    required this.clientName,
-    required this.sym,
-    required this.fmt,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final dateFmt = DateFormat('dd MMM yyyy');
-    String date = '';
-    try {
-      date = dateFmt.format(DateTime.parse(invoice.date));
-    } catch (_) {}
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              clientName != '—' ? clientName : invoice.number,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: AppColors.ink,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (clientName != '—') ...[
-              const SizedBox(height: 3),
-              Text(
-                invoice.number,
-                style: GoogleFonts.inter(
-                    fontSize: 12, color: AppColors.muted),
-              ),
-            ],
-            const SizedBox(height: 14),
-            const Divider(height: 1, color: Color(0xFFE5E7EB)),
-            const SizedBox(height: 14),
-            Text(
-              'Invoice Details',
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppColors.ink,
-                letterSpacing: 0.3,
-              ),
-            ),
-            const SizedBox(height: 10),
-            _Row(label: 'Amount',
-                value: '$sym${fmt.format(invoice.total)}'),
-            const SizedBox(height: 6),
-            _Row(label: 'Date', value: date),
-            if (invoice.items.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              _Row(
-                label: 'Items',
-                value:
-                    '${invoice.items.length} item${invoice.items.length > 1 ? 's' : ''}',
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Row extends StatelessWidget {
-  final String label;
-  final String value;
-  const _Row({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label,
-            style: GoogleFonts.inter(
-                fontSize: 12, color: AppColors.muted)),
-        Text(value,
-            style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.ink)),
-      ],
-    );
-  }
-}

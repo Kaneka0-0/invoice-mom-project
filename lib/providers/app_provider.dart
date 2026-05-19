@@ -56,14 +56,16 @@ class AppProvider extends ChangeNotifier {
     try {
       final results = await Future.wait([
         SupabaseSync.fetchClients(),
+        SupabaseSync.fetchClientLocations(),
         SupabaseSync.fetchInvoices(),
         SupabaseSync.fetchSettings(),
       ]);
 
-      _store.clients  = results[0] as List<Client>;
-      _store.invoices = results[1] as List<Invoice>;
+      _store.clients         = results[0] as List<Client>;
+      _store.clientLocations = results[1] as List<ClientLocation>;
+      _store.invoices        = results[2] as List<Invoice>;
 
-      final remoteSettings = results[2] as AppSettings?;
+      final remoteSettings = results[3] as AppSettings?;
       if (remoteSettings != null) _store.settings = remoteSettings;
 
       await _store.save();
@@ -97,6 +99,36 @@ class AppProvider extends ChangeNotifier {
     await _store.save();
     notifyListeners();
     SupabaseSync.upsertSettings(_store.settings).catchError((_) {});
+  }
+
+  // ── Client Locations ──────────────────────────────────────────────────────
+  List<ClientLocation> locationsForClient(String clientId) =>
+      _store.locationsForClient(clientId);
+
+  Future<ClientLocation> addClientLocation({
+    required String clientId,
+    required String name,
+    String address = '',
+  }) async {
+    final loc = ClientLocation(
+      id: _uuid.v4(),
+      clientId: clientId,
+      name: name,
+      address: address,
+      createdAt: DateTime.now().toIso8601String(),
+    );
+    _store.clientLocations.add(loc);
+    await _store.save();
+    notifyListeners();
+    SupabaseSync.upsertClientLocation(loc).catchError((_) {});
+    return loc;
+  }
+
+  Future<void> deleteClientLocation(String id) async {
+    _store.clientLocations.removeWhere((l) => l.id == id);
+    await _store.save();
+    notifyListeners();
+    SupabaseSync.deleteClientLocation(id).catchError((_) {});
   }
 
   // ── Clients ───────────────────────────────────────────────────────────────
@@ -146,6 +178,7 @@ class AppProvider extends ChangeNotifier {
   Future<Invoice> addInvoice({
     required String date,
     String? clientId,
+    String? deliveryLocation,
     List<InvoiceItem>? items,
     String notes = '',
     double deposit = 0,
@@ -156,6 +189,7 @@ class AppProvider extends ChangeNotifier {
       id: id,
       number: _store.nextInvoiceNumber(),
       clientId: clientId,
+      deliveryLocation: deliveryLocation,
       date: date,
       notes: notes,
       deposit: deposit,

@@ -112,6 +112,40 @@ class Client {
       );
 }
 
+// ─── Client Location ──────────────────────────────────────────────────────────
+
+class ClientLocation {
+  final String id;
+  final String clientId;
+  String name;    // e.g. "Site A", "Phnom Penh"
+  String address;
+  final String createdAt;
+
+  ClientLocation({
+    required this.id,
+    required this.clientId,
+    required this.name,
+    this.address = '',
+    this.createdAt = '',
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'client_id': clientId,
+        'name': name,
+        'address': address,
+        'created_at': createdAt,
+      };
+
+  factory ClientLocation.fromJson(Map<String, dynamic> j) => ClientLocation(
+        id: j['id'],
+        clientId: j['client_id'] ?? j['clientId'] ?? '',
+        name: j['name'] ?? '',
+        address: j['address'] ?? '',
+        createdAt: j['created_at'] ?? j['createdAt'] ?? '',
+      );
+}
+
 // ─── Worker ────────────────────────────────────────────────────────────────────
 
 enum WorkerRole { driver, loader, supervisor, other }
@@ -483,6 +517,7 @@ class Invoice {
   double total;
   double deposit;
   String notes;
+  String? deliveryLocation;
   final String createdAt;
   List<InvoiceItem> items; // embedded locally, synced to invoice_items table
 
@@ -498,6 +533,7 @@ class Invoice {
     this.total = 0,
     this.deposit = 0,
     this.notes = '',
+    this.deliveryLocation,
     required this.createdAt,
     List<InvoiceItem>? items,
   }) : items = items ?? [];
@@ -522,6 +558,7 @@ class Invoice {
         'total': total,
         'deposit': deposit,
         'notes': notes,
+        'delivery_location': deliveryLocation,
         'created_at': createdAt,
         'items': items.map((e) => e.toJson()).toList(),
       };
@@ -540,6 +577,7 @@ class Invoice {
       total: ((j['total']) ?? 0).toDouble(),
       deposit: ((j['deposit']) ?? 0).toDouble(),
       notes: j['notes'] ?? '',
+      deliveryLocation: j['delivery_location'] ?? j['deliveryLocation'],
       createdAt: j['created_at'] ?? j['createdAt'] ?? '',
       items: (rawItems as List<dynamic>? ?? [])
           .map((e) => InvoiceItem.fromJson(e as Map<String, dynamic>))

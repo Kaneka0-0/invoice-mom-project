@@ -8,6 +8,7 @@ class StorageService {
 
   AppSettings settings = AppSettings();
   List<Client> clients = [];
+  List<ClientLocation> clientLocations = [];
   List<Worker> workers = [];
   List<Car> cars = [];
   List<Vendor> vendors = [];
@@ -31,7 +32,8 @@ class StorageService {
         settings = AppSettings.fromJson(data['settings'] as Map<String, dynamic>);
       }
 
-      clients            = _mapList(data['clients'],             Client.fromJson);
+      clients            = _mapList(data['clients'],              Client.fromJson);
+      clientLocations    = _mapList(data['client_locations'],    ClientLocation.fromJson);
       workers            = _mapList(data['workers'],             Worker.fromJson);
       cars               = _mapList(data['cars'],                Car.fromJson);
       vendors            = _mapList(data['vendors'],             Vendor.fromJson);
@@ -52,6 +54,7 @@ class StorageService {
     final data = {
       'settings':            settings.toJson(),
       'clients':             clients.map((e) => e.toJson()).toList(),
+      'client_locations':    clientLocations.map((e) => e.toJson()).toList(),
       'workers':             workers.map((e) => e.toJson()).toList(),
       'cars':                cars.map((e) => e.toJson()).toList(),
       'vendors':             vendors.map((e) => e.toJson()).toList(),
@@ -81,6 +84,10 @@ class StorageService {
   }
 
   // ── Lookup helpers ────────────────────────────────────────────────────────
+  List<ClientLocation> locationsForClient(String clientId) =>
+      clientLocations.where((l) => l.clientId == clientId).toList()
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
   Client?           findClient(String? id)      => id == null ? null : clients.where((c) => c.id == id).firstOrNull;
   Worker?           findWorker(String? id)      => id == null ? null : workers.where((w) => w.id == id).firstOrNull;
   Car?              findCar(String? id)         => id == null ? null : cars.where((c) => c.id == id).firstOrNull;

@@ -20,10 +20,11 @@ class InvoiceFormScreen extends StatefulWidget {
 
 class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _uuid    = const Uuid();
+  final _uuid = const Uuid();
 
-  String  _date     = DateFormat('yyyy-MM-dd').format(DateTime.now());
+  String _date = DateFormat('yyyy-MM-dd').format(DateTime.now());
   String? _clientId;
+  String? _deliveryLocation;
   bool _saving = false;
 
   final _depositCtrl = TextEditingController();
@@ -46,37 +47,45 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
   @override
   void dispose() {
     _depositCtrl.dispose();
-    for (final e in _entries) { e.dispose(); }
+    for (final e in _entries) {
+      e.dispose();
+    }
     super.dispose();
   }
 
   void _loadExisting() {
-    final provider     = context.read<AppProvider>();
+    final provider = context.read<AppProvider>();
     final defaultPrice = provider.settings.brickPriceDefault;
     for (final e in _entries) {
-      e.priceCtrl.text = defaultPrice.toStringAsFixed(2);
+      e.priceCtrl.text = defaultPrice.toStringAsFixed(3);
     }
 
-    if (widget.id == null) { setState(() {}); return; }
+    if (widget.id == null) {
+      setState(() {});
+      return;
+    }
 
     final inv = provider.store.findInvoice(widget.id);
-    if (inv == null)       { setState(() {}); return; }
+    if (inv == null) {
+      setState(() {});
+      return;
+    }
 
     setState(() {
-      _date     = inv.date;
+      _date = inv.date;
       _clientId = inv.clientId;
+      _deliveryLocation = inv.deliveryLocation;
       if (inv.deposit > 0) {
         _depositCtrl.text = inv.deposit.toString();
       }
       for (final item in inv.items) {
         try {
           final entry = _entries.firstWhere(
-            (e) => e.priceType == item.priceType &&
-                   e.brickCategory == item.brickCategory,
+            (e) => e.priceType == item.priceType && e.brickCategory == item.brickCategory,
           );
-          entry.existingId      = item.id;
-          entry.qtyCtrl.text   = item.quantity.toString();
-          entry.priceCtrl.text = item.unitPrice.toString();
+          entry.existingId = item.id;
+          entry.qtyCtrl.text = item.quantity.toString();
+          entry.priceCtrl.text = item.unitPrice.toStringAsFixed(3);
         } catch (_) {}
       }
     });
@@ -84,14 +93,25 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
 
   double get _grandTotal => _entries.fold(0.0, (s, e) => s + e.total);
 
+  Future<void> _pickLocation(BuildContext context, List<ClientLocation> locations) async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _LocationPickerSheet(locations: locations),
+    );
+    if (picked != null && mounted) {
+      setState(() => _deliveryLocation = picked);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
-        final s      = provider.s;
+        final s = provider.s;
         final isEdit = widget.id != null;
-        final sym    = provider.settings.currencySymbol;
-        final fmt    = NumberFormat('#,##0.00');
+        final sym = provider.settings.currencySymbol;
+        final fmt = NumberFormat('#,##0.00');
 
         return Scaffold(
           backgroundColor: const Color(0xFFF0F2F5),
@@ -110,8 +130,8 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
               ),
             ),
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                  color: Color(0xFF0B2218), size: 18),
+              icon:
+                  const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF0B2218), size: 18),
               onPressed: () => context.pop(),
             ),
             actions: [
@@ -121,15 +141,12 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Color(0xFF0B2218)),
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0B2218)),
                       )
                     : GestureDetector(
                         onTap: () => _save(context, provider),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           decoration: BoxDecoration(
                             color: const Color(0xFF0B2218),
                             borderRadius: BorderRadius.circular(10),
@@ -172,7 +189,22 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
                     child: _ClientPicker(
                       clients: provider.clients,
                       selectedId: _clientId,
-                      onChanged: (id) => setState(() => _clientId = id),
+                      onChanged: (id) {
+                        setState(() {
+                          _clientId = id;
+                          _deliveryLocation = null;
+                        });
+                        if (id != null) {
+                          final locs = provider.locationsForClient(id);
+                          if (locs.length == 1) {
+                            setState(() => _deliveryLocation = locs.first.name);
+                          } else if (locs.length > 1) {
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              _pickLocation(context, locs);
+                            });
+                          }
+                        }
+                      },
                       onAddNew: () async {
                         await showClientSheet(context);
                         setState(() {});
@@ -181,6 +213,45 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
+
+                  // ── Selected location chip ─────────────────────────────
+                  if (_deliveryLocation != null) ...[
+                    GestureDetector(
+                      onTap: () {
+                        if (_clientId != null) {
+                          final locs = provider.locationsForClient(_clientId!);
+                          if (locs.isNotEmpty) _pickLocation(context, locs);
+                        }
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0B2218).withAlpha(10),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF0B2218).withAlpha(40)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.location_on_outlined,
+                                size: 16, color: Color(0xFF0B2218)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _deliveryLocation!,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF0B2218),
+                                ),
+                              ),
+                            ),
+                            const Icon(Icons.edit_outlined, size: 14, color: Color(0xFF0B2218)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
 
                   // ── Deposit ───────────────────────────────────────────
                   _FormCard(
@@ -194,9 +265,7 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
                         prefixText: '${provider.settings.currencySymbol} ',
                       ),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
-                      ],
+                      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -210,7 +279,7 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
                         _BrickGroup(
                           label: provider.isKh ? 'ឥដ្ឋធម្មតា' : 'Normal',
                           holLabel: provider.isKh ? 'ប្រហោង' : 'Hol',
-                          solLabel: provider.isKh ? 'ពាន់' : 'Sol',
+                          solLabel: provider.isKh ? 'ចំនួន' : 'Sol',
                           holEntry: _entries[0],
                           solEntry: _entries[1],
                           sym: sym,
@@ -220,7 +289,7 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
                         _BrickGroup(
                           label: provider.isKh ? 'ឥដ្ឋខ្លោច' : 'Burnt',
                           holLabel: provider.isKh ? 'ប្រហោង' : 'Hol',
-                          solLabel: provider.isKh ? 'ពាន់' : 'Sol',
+                          solLabel: provider.isKh ? 'ចំនួន' : 'Sol',
                           holEntry: _entries[2],
                           solEntry: _entries[3],
                           sym: sym,
@@ -228,8 +297,7 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
                         ),
                         const SizedBox(height: 14),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 18, vertical: 14),
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: [Color(0xFF0B2218), Color(0xFF1A4030)],
@@ -237,8 +305,7 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               const Text('TOTAL',
                                   style: TextStyle(
@@ -286,43 +353,47 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
 
     final deposit = double.tryParse(_depositCtrl.text) ?? 0;
     final invoiceId = widget.id ?? _uuid.v4();
-    final items = filled.map((e) => InvoiceItem(
-          id:            e.existingId.isEmpty ? _uuid.v4() : e.existingId,
-          invoiceId:     invoiceId,
-          brickTypeId:   null,
-          quantity:      e.qty,
-          unitPrice:     e.price,
-          total:         e.total,
-          priceType:     e.priceType,
-          brickCategory: e.brickCategory,
-        )).toList();
+    final items = filled
+        .map((e) => InvoiceItem(
+              id: e.existingId.isEmpty ? _uuid.v4() : e.existingId,
+              invoiceId: invoiceId,
+              brickTypeId: null,
+              quantity: e.qty,
+              unitPrice: e.price,
+              total: e.total,
+              priceType: e.priceType,
+              brickCategory: e.brickCategory,
+            ))
+        .toList();
 
     try {
       Invoice savedInv;
       if (widget.id == null) {
         savedInv = await provider.addInvoice(
-          date:     _date,
+          date: _date,
           clientId: _clientId,
-          items:    items,
-          deposit:  deposit,
+          deliveryLocation: _deliveryLocation,
+          items: items,
+          deposit: deposit,
         );
 
         if (context.mounted) {
           context.go('/invoices');
           final client = provider.store.findClient(savedInv.clientId ?? '');
           InvoiceHtmlService.download(
-            invoice:  savedInv,
-            client:   client,
+            invoice: savedInv,
+            client: client,
             settings: provider.settings,
             editPath: '/invoices/${savedInv.id}/edit',
           );
         }
       } else {
         final inv = provider.store.findInvoice(widget.id)!;
-        inv.date     = _date;
+        inv.date = _date;
         inv.clientId = _clientId;
-        inv.items    = items;
-        inv.deposit  = deposit;
+        inv.deliveryLocation = _deliveryLocation;
+        inv.items = items;
+        inv.deposit = deposit;
         await provider.updateInvoice(inv);
         savedInv = inv;
 
@@ -330,8 +401,8 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
           context.go('/invoices');
           final client = provider.store.findClient(savedInv.clientId ?? '');
           InvoiceHtmlService.download(
-            invoice:  savedInv,
-            client:   client,
+            invoice: savedInv,
+            client: client,
             settings: provider.settings,
             editPath: '/invoices/${savedInv.id}/edit',
           );
@@ -383,8 +454,7 @@ class _FormCard extends StatelessWidget {
                     color: const Color(0xFF0B2218).withAlpha(15),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(icon,
-                      size: 14, color: const Color(0xFF0B2218)),
+                  child: Icon(icon, size: 14, color: const Color(0xFF0B2218)),
                 ),
                 const SizedBox(width: 10),
                 Text(
@@ -424,10 +494,10 @@ class _BrickEntry {
     required this.priceType,
     required this.brickCategory,
   })  : existingId = '',
-        qtyCtrl    = TextEditingController(),
-        priceCtrl  = TextEditingController();
+        qtyCtrl = TextEditingController(),
+        priceCtrl = TextEditingController();
 
-  int    get qty   => int.tryParse(qtyCtrl.text) ?? 0;
+  int get qty => int.tryParse(qtyCtrl.text) ?? 0;
   double get price => double.tryParse(priceCtrl.text) ?? 0;
   double get total => qty * price;
 
@@ -460,7 +530,7 @@ class _BrickGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fmt        = NumberFormat('#,##0.00');
+    final fmt = NumberFormat('#,##0.00');
     final groupTotal = holEntry.total + solEntry.total;
 
     return Container(
@@ -481,17 +551,13 @@ class _BrickGroup extends StatelessWidget {
               children: [
                 Text(label,
                     style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF0B2218))),
+                        fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0B2218))),
                 const Spacer(),
                 if (groupTotal > 0)
                   Text(
                     '$sym${fmt.format(groupTotal)}',
                     style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF0B2218)),
+                        fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0B2218)),
                   ),
               ],
             ),
@@ -558,8 +624,7 @@ class _BrickEntryRow extends StatelessWidget {
                   decoration: const InputDecoration(
                     hintText: 'Qty',
                     isDense: true,
-                    prefixIcon: Icon(Icons.format_list_numbered,
-                        size: 14, color: AppColors.muted),
+                    prefixIcon: Icon(Icons.format_list_numbered, size: 14, color: AppColors.muted),
                   ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -577,9 +642,7 @@ class _BrickEntryRow extends StatelessWidget {
                     prefixText: '$sym ',
                   ),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
-                  ],
+                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
                   onChanged: (_) => onChanged(),
                 ),
               ),
@@ -634,10 +697,8 @@ class _DateField extends StatelessWidget {
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: const Icon(Icons.calendar_month_outlined,
-              size: 18, color: AppColors.muted),
-          suffixIcon: const Icon(Icons.arrow_drop_down_rounded,
-              color: AppColors.muted),
+          prefixIcon: const Icon(Icons.calendar_month_outlined, size: 18, color: AppColors.muted),
+          suffixIcon: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.muted),
         ),
         child: Text(
           display.isEmpty ? 'Select date' : display,
@@ -671,7 +732,7 @@ class _ClientPicker extends StatefulWidget {
 
 class _ClientPickerState extends State<_ClientPicker> {
   final _searchCtrl = TextEditingController();
-  final _layerLink  = LayerLink();
+  final _layerLink = LayerLink();
   OverlayEntry? _overlay;
   bool _open = false;
 
@@ -702,8 +763,8 @@ class _ClientPickerState extends State<_ClientPicker> {
   }
 
   OverlayEntry _buildOverlay(BuildContext context) {
-    final box    = context.findRenderObject() as RenderBox;
-    final size   = box.size;
+    final box = context.findRenderObject() as RenderBox;
+    final size = box.size;
     final offset = box.localToGlobal(Offset.zero);
     final screenH = MediaQuery.of(context).size.height;
     final spaceBelow = screenH - offset.dy - size.height;
@@ -718,9 +779,7 @@ class _ClientPickerState extends State<_ClientPicker> {
             CompositedTransformFollower(
               link: _layerLink,
               showWhenUnlinked: false,
-              offset: showAbove
-                  ? const Offset(0, -320)
-                  : Offset(0, size.height + 4),
+              offset: showAbove ? const Offset(0, -320) : Offset(0, size.height + 4),
               child: Material(
                 elevation: 8,
                 borderRadius: BorderRadius.circular(14),
@@ -768,27 +827,19 @@ class _ClientPickerState extends State<_ClientPicker> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
-            color: hasClient
-                ? const Color(0xFF0B2218).withAlpha(8)
-                : const Color(0xFFF4F4F5),
+            color: hasClient ? const Color(0xFF0B2218).withAlpha(8) : const Color(0xFFF4F4F5),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: hasClient
-                  ? const Color(0xFF0B2218).withAlpha(60)
-                  : const Color(0xFFE2E8E4),
+              color: hasClient ? const Color(0xFF0B2218).withAlpha(60) : const Color(0xFFE2E8E4),
               width: hasClient ? 1.5 : 1,
             ),
           ),
           child: Row(
             children: [
               Icon(
-                hasClient
-                    ? Icons.person_rounded
-                    : Icons.person_outline_rounded,
+                hasClient ? Icons.person_rounded : Icons.person_outline_rounded,
                 size: 18,
-                color: hasClient
-                    ? const Color(0xFF0B2218)
-                    : AppColors.muted,
+                color: hasClient ? const Color(0xFF0B2218) : AppColors.muted,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -796,12 +847,8 @@ class _ClientPickerState extends State<_ClientPicker> {
                   hasClient ? _selectedName : widget.s.selectClient,
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: hasClient
-                        ? FontWeight.w600
-                        : FontWeight.normal,
-                    color: hasClient
-                        ? const Color(0xFF0D1F17)
-                        : AppColors.muted,
+                    fontWeight: hasClient ? FontWeight.w600 : FontWeight.normal,
+                    color: hasClient ? const Color(0xFF0D1F17) : AppColors.muted,
                   ),
                 ),
               ),
@@ -811,14 +858,11 @@ class _ClientPickerState extends State<_ClientPicker> {
                     widget.onChanged(null);
                     _close();
                   },
-                  child: const Icon(Icons.close_rounded,
-                      size: 16, color: AppColors.muted),
+                  child: const Icon(Icons.close_rounded, size: 16, color: AppColors.muted),
                 )
               else
                 Icon(
-                  _open
-                      ? Icons.keyboard_arrow_up_rounded
-                      : Icons.keyboard_arrow_down_rounded,
+                  _open ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
                   size: 20,
                   color: AppColors.muted,
                 ),
@@ -863,9 +907,7 @@ class _ClientPickerDropdownState extends State<_ClientPickerDropdown> {
     final q = widget.searchCtrl.text.toLowerCase();
     final filtered = q.isEmpty
         ? widget.clients
-        : widget.clients
-            .where((c) => c.name.toLowerCase().contains(q))
-            .toList();
+        : widget.clients.where((c) => c.name.toLowerCase().contains(q)).toList();
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxHeight: 320),
@@ -880,8 +922,7 @@ class _ClientPickerDropdownState extends State<_ClientPickerDropdown> {
               autofocus: true,
               decoration: InputDecoration(
                 hintText: 'Search clients...',
-                prefixIcon:
-                    const Icon(Icons.search_rounded, size: 18),
+                prefixIcon: const Icon(Icons.search_rounded, size: 18),
                 isDense: true,
                 fillColor: const Color(0xFFF4F4F5),
                 filled: true,
@@ -895,8 +936,7 @@ class _ClientPickerDropdownState extends State<_ClientPickerDropdown> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(
-                      color: Color(0xFF0B2218), width: 1.5),
+                  borderSide: const BorderSide(color: Color(0xFF0B2218), width: 1.5),
                 ),
               ),
               style: const TextStyle(fontSize: 13),
@@ -909,8 +949,7 @@ class _ClientPickerDropdownState extends State<_ClientPickerDropdown> {
             child: GestureDetector(
               onTap: widget.onAddNew,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
                   color: const Color(0xFF0B2218).withAlpha(10),
                   borderRadius: BorderRadius.circular(10),
@@ -920,8 +959,7 @@ class _ClientPickerDropdownState extends State<_ClientPickerDropdown> {
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.add_rounded,
-                        size: 16, color: Color(0xFF0B2218)),
+                    Icon(Icons.add_rounded, size: 16, color: Color(0xFF0B2218)),
                     SizedBox(width: 8),
                     Text('Add New Client',
                         style: TextStyle(
@@ -941,9 +979,8 @@ class _ClientPickerDropdownState extends State<_ClientPickerDropdown> {
           if (filtered.isEmpty)
             const Padding(
               padding: EdgeInsets.all(16),
-              child: Text('No clients found',
-                  style:
-                      TextStyle(fontSize: 13, color: AppColors.muted)),
+              child:
+                  Text('No clients found', style: TextStyle(fontSize: 13, color: AppColors.muted)),
             )
           else
             Flexible(
@@ -957,8 +994,7 @@ class _ClientPickerDropdownState extends State<_ClientPickerDropdown> {
                   return InkWell(
                     onTap: () => widget.onSelect(c.id),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       child: Row(
                         children: [
                           Container(
@@ -967,29 +1003,23 @@ class _ClientPickerDropdownState extends State<_ClientPickerDropdown> {
                             decoration: BoxDecoration(
                               color: selected
                                   ? const Color(0xFF0B2218)
-                                  : const Color(0xFF0B2218)
-                                      .withAlpha(14),
+                                  : const Color(0xFF0B2218).withAlpha(14),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             alignment: Alignment.center,
                             child: Text(
-                              c.name.isNotEmpty
-                                  ? c.name[0].toUpperCase()
-                                  : '?',
+                              c.name.isNotEmpty ? c.name[0].toUpperCase() : '?',
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
-                                color: selected
-                                    ? Colors.white
-                                    : const Color(0xFF0B2218),
+                                color: selected ? Colors.white : const Color(0xFF0B2218),
                               ),
                             ),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(c.name,
                                     style: TextStyle(
@@ -1001,16 +1031,12 @@ class _ClientPickerDropdownState extends State<_ClientPickerDropdown> {
                                     )),
                                 if (c.phone.isNotEmpty)
                                   Text(c.phone,
-                                      style: const TextStyle(
-                                          fontSize: 11,
-                                          color: AppColors.muted)),
+                                      style: const TextStyle(fontSize: 11, color: AppColors.muted)),
                               ],
                             ),
                           ),
                           if (selected)
-                            const Icon(Icons.check_rounded,
-                                size: 16,
-                                color: Color(0xFF0B2218)),
+                            const Icon(Icons.check_rounded, size: 16, color: Color(0xFF0B2218)),
                         ],
                       ),
                     ),
@@ -1019,6 +1045,92 @@ class _ClientPickerDropdownState extends State<_ClientPickerDropdown> {
               ),
             ),
           const SizedBox(height: 6),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Location picker bottom sheet ──────────────────────────────────────────────
+
+class _LocationPickerSheet extends StatelessWidget {
+  final List<ClientLocation> locations;
+  const _LocationPickerSheet({required this.locations});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFDDE3E0),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0B2218).withAlpha(12),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: const Icon(Icons.location_on_outlined, size: 16, color: Color(0xFF0B2218)),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Select Delivery Location',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0B2218),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...locations.map((loc) => GestureDetector(
+                onTap: () => Navigator.of(context).pop(loc.name),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF4F4F5),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.location_on_outlined, size: 18, color: Color(0xFF0B2218)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          loc.name,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF0B2218),
+                          ),
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded, size: 18, color: Color(0xFF9CA3AF)),
+                    ],
+                  ),
+                ),
+              )),
         ],
       ),
     );

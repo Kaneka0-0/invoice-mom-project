@@ -36,6 +36,22 @@ class SupabaseSync {
   static Future<void> deleteClient(String id) async =>
       _db.from('clients').delete().eq('id', id);
 
+  // ── Client Locations ──────────────────────────────────────────────────────
+  static Future<List<ClientLocation>> fetchClientLocations() async {
+    try {
+      final rows = await _db.from('client_locations').select().order('created_at');
+      return rows.map((r) => ClientLocation.fromJson(r)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+  static Future<void> upsertClientLocation(ClientLocation loc) async {
+    try { await _db.from('client_locations').upsert(loc.toJson()); } catch (_) {}
+  }
+  static Future<void> deleteClientLocation(String id) async {
+    try { await _db.from('client_locations').delete().eq('id', id); } catch (_) {}
+  }
+
   // ── Invoices (with items via join) ────────────────────────────────────────
   static Future<List<Invoice>> fetchInvoices() async {
     try {
@@ -64,9 +80,10 @@ class SupabaseSync {
       'status':     inv.status.name,
       'subtotal':   inv.subtotal,
       'total':      inv.total,
-      'deposit':    inv.deposit,
-      'notes':      inv.notes,
-      'created_at': inv.createdAt,
+      'deposit':           inv.deposit,
+      'notes':             inv.notes,
+      'delivery_location': inv.deliveryLocation,
+      'created_at':        inv.createdAt,
     };
 
     await _db.from('invoices').upsert(row);
@@ -100,6 +117,16 @@ class SupabaseSync {
     try { await _db.from('borrow_transactions').delete().eq('related_invoice_id', id); } catch (_) {}
     await _db.from('invoices').delete().eq('id', id);
   }
+
+  // ── Realtime Streams ─────────────────────────────────────────────────────
+  static Stream<List<Client>> clientsStream() =>
+      _db.from('clients').stream(primaryKey: ['id']).order('created_at')
+          .map((rows) => rows.map((r) => Client.fromJson(r)).toList());
+
+  static Stream<List<Invoice>> invoicesStream() =>
+      _db.from('invoices').stream(primaryKey: ['id'])
+          .order('date', ascending: false)
+          .map((rows) => rows.map((r) => Invoice.fromJson(r)).toList());
 
   // ── Settings ──────────────────────────────────────────────────────────────
   static Future<AppSettings?> fetchSettings() async {

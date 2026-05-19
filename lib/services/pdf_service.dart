@@ -19,8 +19,9 @@ const _slate  = PdfColor.fromInt(0xFF4A6A58);
 const _grey   = PdfColor.fromInt(0xFF8CA89A);
 
 class PdfService {
-  static final _fmt     = NumberFormat('#,##0.00');
-  static final _intFmt  = NumberFormat('#,###');
+  static final _fmt      = NumberFormat('#,##0.00');
+  static final _priceFmt = NumberFormat('#,##0.####');
+  static final _intFmt   = NumberFormat('#,###');
   static final _dateFmt = DateFormat('dd/MM/yyyy');
 
   // ── Individual invoice (pw.Stack + pw.SvgImage template) ────────────────
@@ -174,7 +175,7 @@ class PdfService {
                 width: px(67),
                 child: pw.Padding(
                   padding: const pw.EdgeInsets.only(right: 4),
-                  child: pw.Text('$sym${_fmt.format(item.unitPrice)}',
+                  child: pw.Text('$sym${_priceFmt.format(item.unitPrice)}',
                       style: pw.TextStyle(fontSize: 9, color: _ink),
                       textAlign: pw.TextAlign.right),
                 ),
@@ -183,7 +184,7 @@ class PdfService {
               pw.Expanded(
                 child: pw.Padding(
                   padding: const pw.EdgeInsets.only(right: 4),
-                  child: pw.Text('$sym${_fmt.format(item.total)}',
+                  child: pw.Text('$sym${_fmt.format(item.quantity * item.unitPrice)}',
                       style: pw.TextStyle(
                           fontSize: 9,
                           fontWeight: pw.FontWeight.bold,
@@ -308,7 +309,7 @@ class PdfService {
         // ── Total amount value ───────────────────────────────────────────
         whiteBox(319, 377, 77, 32),
         positioned(319, 381, 74,
-          pw.Text('$sym${_fmt.format(invoice.total)}',
+          pw.Text('$sym${_fmt.format(invoice.items.fold(0.0, (s, i) => s + i.quantity * i.unitPrice))}',
               style: pw.TextStyle(
                   fontSize: 10, fontWeight: pw.FontWeight.bold, color: _ink),
               textAlign: pw.TextAlign.right),
@@ -417,9 +418,9 @@ class PdfService {
           horizontalInside: pw.BorderSide(color: _border, width: 0.5),
         ),
         columnWidths: const {
-          0: pw.FixedColumnWidth(65),
+          0: pw.FixedColumnWidth(38),
           1: pw.FixedColumnWidth(52),
-          2: pw.FlexColumnWidth(2),
+          2: pw.FixedColumnWidth(72),
           3: pw.FlexColumnWidth(2.5),
           4: pw.FixedColumnWidth(50),
           5: pw.FixedColumnWidth(60),
@@ -428,7 +429,7 @@ class PdfService {
         children: [
           pw.TableRow(
             decoration: const pw.BoxDecoration(color: _forest),
-            children: ['Invoice #', 'Date', 'Client', 'Brick Type', 'Qty', 'Unit Price', 'Total']
+            children: ['No', 'Date', 'Invoice NO', 'Description', 'Qty', 'Unit Price', 'Total']
                 .map((h) => pw.Padding(
                       padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 7),
                       child: pw.Text(h,
@@ -443,9 +444,9 @@ class PdfService {
             final isEven = entry.key.isEven;
             final r = entry.value;
             final cells = [
-              r['number'] ?? '',
+              '${entry.key + 1}',
               r['date'] ?? '',
-              r['client'] ?? '',
+              r['number'] ?? '',
               r['brickType'] ?? '',
               r['qty'] ?? '',
               '$sym${r['unitPrice'] ?? ''}',
@@ -588,7 +589,7 @@ class PdfService {
                 : null;
             final brickType  = bt?.name ?? (firstItem != null ? 'Brick' : '—');
             final qty        = firstItem != null ? _intFmt.format(firstItem.quantity) : '—';
-            final unitPrice  = firstItem != null ? '$sym${_fmt.format(firstItem.unitPrice)}' : '—';
+            final unitPrice  = firstItem != null ? '$sym${_priceFmt.format(firstItem.unitPrice)}' : '—';
 
             final cells = [
               inv.number,
@@ -597,7 +598,7 @@ class PdfService {
               brickType,
               qty,
               unitPrice,
-              '$sym${_fmt.format(inv.total)}',
+              '$sym${_fmt.format(inv.items.fold(0.0, (s, i) => s + i.quantity * i.unitPrice))}',
             ];
 
             return pw.TableRow(

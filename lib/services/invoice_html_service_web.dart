@@ -25,8 +25,9 @@ import 'package:intl/intl.dart';
 import '../models/models.dart';
 
 class InvoiceHtmlService {
-  static final _fmt    = NumberFormat('#,##0.00');
-  static final _intFmt = NumberFormat('#,###');
+  static final _fmt      = NumberFormat('#,##0.00');
+  static final _priceFmt = NumberFormat('#,##0.000');
+  static final _intFmt   = NumberFormat('#,###');
 
   static Future<void> download({
     required Invoice invoice,
@@ -66,15 +67,15 @@ class InvoiceHtmlService {
     }
     String rowUp(int idx) {
       final item = itemMap[slots[idx]];
-      return item != null ? '$sym${_fmt.format(item.unitPrice)}' : '';
+      return item != null ? '$sym${_priceFmt.format(item.unitPrice)}' : '';
     }
     String rowAmt(int idx) {
       final item = itemMap[slots[idx]];
-      return item != null ? '$sym${_fmt.format(item.total)}' : '';
+      return item != null ? '$sym${_fmt.format(item.quantity * item.unitPrice)}' : '';
     }
 
     // ── Totals ────────────────────────────────────────────────────────────────
-    final total   = invoice.total;
+    final total   = invoice.items.fold(0.0, (s, i) => s + i.quantity * i.unitPrice);
     final deposit = invoice.deposit;
     final balance = total - deposit;
 
@@ -101,7 +102,7 @@ class InvoiceHtmlService {
       .replaceAll('{{SELLER_ADDRESS}}',  _e(settings.address))
       .replaceAll('{{SELLER_PHONE}}',    _e(settings.phone))
       .replaceAll('{{BUYER_NAME}}',      _e(client?.name ?? '—'))
-      .replaceAll('{{BUYER_ADDRESS}}',   _e(client?.address ?? ''))
+      .replaceAll('{{BUYER_ADDRESS}}',   _e(invoice.deliveryLocation ?? client?.address ?? ''))
       .replaceAll('{{R1_QTY}}', rowQty(0)).replaceAll('{{R1_UP}}', rowUp(0)).replaceAll('{{R1_AMT}}', rowAmt(0))
       .replaceAll('{{R2_QTY}}', rowQty(1)).replaceAll('{{R2_UP}}', rowUp(1)).replaceAll('{{R2_AMT}}', rowAmt(1))
       .replaceAll('{{R3_QTY}}', rowQty(2)).replaceAll('{{R3_UP}}', rowUp(2)).replaceAll('{{R3_AMT}}', rowAmt(2))
@@ -158,6 +159,7 @@ class InvoiceHtmlService {
       allRowHtml.add('<tr>'
           '<td class="cell-no">$rowNum</td>'
           '<td class="cell-date">${_e(r['date'] ?? '')}</td>'
+          '<td class="cell-inv-no">${_e(r['number'] ?? '')}</td>'
           '<td class="cell-desc">${_e(r['brickType'] ?? '')}</td>'
           '<td class="cell-qty">${_e(qty)}</td>'
           '<td class="cell-up">${up.isEmpty ? '' : '$sym${_e(up)}'}</td>'
@@ -238,16 +240,17 @@ class InvoiceHtmlService {
         allRowHtml.add('<tr>'
             '<td class="cell-no">$rowNum</td>'
             '<td class="cell-date">${_e(dateStr)}</td>'
+            '<td class="cell-inv-no">${_e(inv.number)}</td>'
             '<td class="cell-desc">${_e(desc)}</td>'
             '<td class="cell-qty">${_intFmt.format(item.quantity)}</td>'
-            '<td class="cell-up">$sym${_fmt.format(item.unitPrice)}</td>'
+            '<td class="cell-up">$sym${_priceFmt.format(item.unitPrice)}</td>'
             '<td class="cell-total cell-total-val">'
-            '$sym${_fmt.format(item.total)}</td>'
+            '$sym${_fmt.format(item.quantity * item.unitPrice)}</td>'
             '</tr>');
       }
     }
 
-    final netTotal = invoices.fold<double>(0, (s, inv) => s + inv.total);
+    final netTotal = invoices.fold<double>(0, (s, inv) => s + inv.items.fold(0.0, (si, i) => si + i.quantity * i.unitPrice));
 
     // ── Invoice reference number ──────────────────────────────────────────────
     String invoiceNo = 'M-$monthLabel';
@@ -372,6 +375,7 @@ class InvoiceHtmlService {
         rowBuf.write('<tr>'
             '<td class="cell-no">$rowNum</td>'
             '<td class="cell-date"></td>'
+            '<td class="cell-inv-no"></td>'
             '<td class="cell-desc"></td>'
             '<td class="cell-qty"></td>'
             '<td class="cell-up"></td>'
@@ -417,17 +421,17 @@ class InvoiceHtmlService {
     final s = '$sym${_fmt.format(netTotal)}';
     return '<tfoot>'
         '<tr>'
-        '<td class="sum-empty" colspan="3"></td>'
+        '<td class="sum-empty" colspan="4"></td>'
         '<td class="sum-label" colspan="2">Net Total</td>'
         '<td class="sum-val">$s</td>'
         '</tr>'
         '<tr>'
-        '<td class="sum-empty" colspan="3"></td>'
+        '<td class="sum-empty" colspan="4"></td>'
         '<td class="sum-label" colspan="2">Tax</td>'
         '<td class="sum-val">0%</td>'
         '</tr>'
         '<tr class="grand-total-row">'
-        '<td class="sum-empty" colspan="3"></td>'
+        '<td class="sum-empty" colspan="4"></td>'
         '<td class="sum-label" colspan="2">Grand Total</td>'
         '<td class="sum-val">$s</td>'
         '</tr>'

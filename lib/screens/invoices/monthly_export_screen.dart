@@ -575,26 +575,26 @@ class _Chip extends StatelessWidget {
 // ── Editable row ──────────────────────────────────────────────────────────────
 class _EditRow {
   final TextEditingController date;
-  final TextEditingController client;
+  final TextEditingController invoiceNo;
   final TextEditingController brickType;
   final TextEditingController qty;
   final TextEditingController price;
 
   _EditRow({
     required String date,
-    required String client,
+    required String invoiceNo,
     required String brickType,
     required int qty,
     required double price,
   })  : date      = TextEditingController(text: date),
-        client    = TextEditingController(text: client),
+        invoiceNo = TextEditingController(text: invoiceNo),
         brickType = TextEditingController(text: brickType),
         qty       = TextEditingController(text: '$qty'),
-        price     = TextEditingController(text: price.toStringAsFixed(2));
+        price     = TextEditingController(text: price.toStringAsFixed(4));
 
   _EditRow.empty()
       : date      = TextEditingController(),
-        client    = TextEditingController(),
+        invoiceNo = TextEditingController(),
         brickType = TextEditingController(),
         qty       = TextEditingController(),
         price     = TextEditingController();
@@ -608,7 +608,7 @@ class _EditRow {
   }
 
   void dispose() {
-    date.dispose(); client.dispose();
+    date.dispose(); invoiceNo.dispose();
     brickType.dispose(); qty.dispose(); price.dispose();
   }
 }
@@ -653,10 +653,9 @@ class _SpreadsheetPageState extends State<_SpreadsheetPage> {
     });
   }
 
-  // No, Date, Client, Brick Type, Qty, Unit Price, Total
-  // Brick Type and Total get the most space (Khmer text + money values).
-  static const _colFlex = [35, 70, 70, 190, 75, 110, 145];
-  static const _headers = ['No', 'Date', 'Client', 'Brick Type', 'Qty', 'Unit Price', 'Total'];
+  // No, Date, Invoice NO, Description, Qty, Unit Price, Total
+  static const _colFlex = [35, 75, 110, 200, 75, 110, 145];
+  static const _headers = ['No', 'Date', 'Invoice NO', 'Description', 'Qty', 'Unit Price', 'Total'];
 
   final _fmt = NumberFormat('#,##0.00');
 
@@ -696,7 +695,6 @@ class _SpreadsheetPageState extends State<_SpreadsheetPage> {
     final result  = <_EditRow>[];
     final dateFmt = DateFormat('dd/MM/yyyy');
     for (final inv in widget.invoices) {
-      final client = widget.provider.store.findClient(inv.clientId);
       String dateStr = inv.date;
       try {
         dateStr = dateFmt.format(DateTime.parse(inv.date));
@@ -707,7 +705,7 @@ class _SpreadsheetPageState extends State<_SpreadsheetPage> {
             .firstOrNull;
         result.add(_EditRow(
           date:      dateStr,
-          client:    client?.name ?? '—',
+          invoiceNo: inv.number,
           brickType: _brickDesc(item, bt),
           qty:       item.quantity,
           price:     item.unitPrice,
@@ -722,7 +720,7 @@ class _SpreadsheetPageState extends State<_SpreadsheetPage> {
 
   List<Map<String, String>> _rowMaps() => _rows.map((r) => {
     'date':      r.date.text,
-    'client':    r.client.text,
+    'number':    r.invoiceNo.text,
     'brickType': r.brickType.text,
     'qty':       r.qty.text,
     'unitPrice': r.price.text,
@@ -826,16 +824,16 @@ class _SpreadsheetPageState extends State<_SpreadsheetPage> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: LayoutBuilder(
                 builder: (ctx, constraints) {
-                  const minW      = 720.0;
-                  const totalFlex = 35 + 70 + 70 + 190 + 75 + 110 + 145;
+                  const minW     = 750.0;
+                  final totalFlex = _colFlex.fold(0, (a, b) => a + b);
                   final isNarrow  = constraints.maxWidth < minW;
                   final tableW    = isNarrow ? minW : constraints.maxWidth;
                   // Last column takes the remainder to avoid floating-point gap.
-                  final firstSix  = _colFlex.sublist(0, 6)
+                  final firstN   = _colFlex.sublist(0, _colFlex.length - 1)
                       .map((f) => f / totalFlex * tableW)
                       .toList();
-                  final lastColW  = tableW - firstSix.fold(0.0, (a, b) => a + b);
-                  final colW      = [...firstSix, lastColW];
+                  final lastColW  = tableW - firstN.fold(0.0, (a, b) => a + b);
+                  final colW      = [...firstN, lastColW];
 
                   // ── Narrow (mobile): nested scrolls, no Expanded inside scroll ──
                   if (isNarrow) {
@@ -1046,7 +1044,7 @@ class _SpreadsheetRowState extends State<_SpreadsheetRow> {
             ),
           ),
           _cell(r.date,      widget.colW[1]),
-          _cell(r.client,    widget.colW[2]),
+          _cell(r.invoiceNo, widget.colW[2]),
           _cell(r.brickType, widget.colW[3]),
           _cell(r.qty,   widget.colW[4],
               align: TextAlign.right,

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../../../models/models.dart';
 import '../../../providers/app_provider.dart';
+import '../../../services/supabase_service.dart';
 import '../../../theme.dart';
 import '../../../widgets/common_widgets.dart';
 import 'client_form_screen.dart';
@@ -16,20 +17,30 @@ class ClientListScreen extends StatefulWidget {
 
 class _ClientListScreenState extends State<ClientListScreen> {
   String _search = '';
+  late final Stream<List<Client>> _clientsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _clientsStream = SupabaseSync.clientsStream();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
         final s = provider.s;
-        final filtered = provider.clients
-            .where((c) =>
-                _search.isEmpty ||
-                c.name.toLowerCase().contains(_search.toLowerCase()) ||
-                c.phone.contains(_search))
-            .toList();
+        return StreamBuilder<List<Client>>(
+          stream: _clientsStream,
+          builder: (context, snapshot) {
+            final filtered = (snapshot.data ?? provider.clients)
+                .where((c) =>
+                    _search.isEmpty ||
+                    c.name.toLowerCase().contains(_search.toLowerCase()) ||
+                    c.phone.contains(_search))
+                .toList();
 
-        return Scaffold(
+            return Scaffold(
           backgroundColor: const Color(0xFFF4F4F5),
           body: Column(
             children: [
@@ -152,24 +163,50 @@ class _ClientListScreenState extends State<ClientListScreen> {
                                   style: const TextStyle(
                                       fontWeight: FontWeight.w600,
                                       color: Color(0xFF0D1F17))),
-                              subtitle: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                                  if (c.phone.isNotEmpty)
-                                    Text(c.phone,
-                                        style: const TextStyle(
-                                            fontSize: 12,
-                                            color: AppColors.muted)),
-                                  if (c.address.isNotEmpty)
-                                    Text(c.address,
-                                        style: const TextStyle(
-                                            fontSize: 11,
-                                            color: AppColors.muted)),
-                                ],
-                              ),
-                              isThreeLine: c.phone.isNotEmpty &&
-                                  c.address.isNotEmpty,
+                              subtitle: Builder(builder: (ctx) {
+                                final locs = provider.locationsForClient(c.id);
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (c.phone.isNotEmpty)
+                                      Text(c.phone,
+                                          style: const TextStyle(
+                                              fontSize: 12,
+                                              color: AppColors.muted)),
+                                    if (locs.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 3),
+                                        child: Wrap(
+                                          spacing: 4,
+                                          runSpacing: 4,
+                                          children: locs.map((l) => Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 7, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF0B2218).withAlpha(10),
+                                              borderRadius: BorderRadius.circular(20),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(Icons.location_on_outlined,
+                                                    size: 10,
+                                                    color: Color(0xFF0B2218)),
+                                                const SizedBox(width: 3),
+                                                Text(l.name,
+                                                    style: const TextStyle(
+                                                        fontSize: 10,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: Color(0xFF0B2218))),
+                                              ],
+                                            ),
+                                          )).toList(),
+                                        ),
+                                      ),
+                                  ],
+                                );
+                              }),
+                              isThreeLine: false,
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -211,6 +248,8 @@ class _ClientListScreenState extends State<ClientListScreen> {
             foregroundColor: Colors.white,
             child: const Icon(Icons.person_add),
           ),
+        );
+          },
         );
       },
     );
