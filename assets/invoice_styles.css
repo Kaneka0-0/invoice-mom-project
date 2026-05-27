@@ -190,9 +190,9 @@ body { background: #d8d8d8; display: flex; justify-content: center; padding: 20p
 .ref-row {
   display: flex;
   flex-direction: row;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: flex-end;
-  gap: 11px;
+  gap: 6px;
   width: 140px;
 }
 .ref-label {
@@ -209,8 +209,6 @@ body { background: #d8d8d8; display: flex; justify-content: center; padding: 20p
   line-height: 16px;
   color: #BC0000;
   text-decoration: underline;
-  flex: 1;
-  text-align: right;
 }
 .ref-date {
   font-family: 'Kantumruy Pro', sans-serif;

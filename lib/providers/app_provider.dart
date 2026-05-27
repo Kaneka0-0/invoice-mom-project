@@ -177,6 +177,7 @@ class AppProvider extends ChangeNotifier {
   // ── Invoices ──────────────────────────────────────────────────────────────
   Future<Invoice> addInvoice({
     required String date,
+    String? number,
     String? clientId,
     String? deliveryLocation,
     List<InvoiceItem>? items,
@@ -187,7 +188,9 @@ class AppProvider extends ChangeNotifier {
     final id = _uuid.v4();
     final invoice = Invoice(
       id: id,
-      number: _store.nextInvoiceNumber(),
+      number: (number != null && number.isNotEmpty)
+          ? number
+          : _store.nextInvoiceNumber(DateTime.tryParse(date) ?? DateTime.now()),
       clientId: clientId,
       deliveryLocation: deliveryLocation,
       date: date,

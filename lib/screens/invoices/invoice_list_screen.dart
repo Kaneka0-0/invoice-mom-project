@@ -21,8 +21,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
   String _search = '';
   String? _monthFilter;
   String? _clientFilter;
-  bool _generalFilter = false;
-  bool _tableView     = false;
+  bool _tableView = false;
   late final Stream<List<Invoice>> _invoicesStream;
 
   @override
@@ -41,15 +40,34 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         return StreamBuilder<List<Invoice>>(
           stream: _invoicesStream,
           builder: (context, snapshot) {
-            final filtered = (snapshot.data ?? provider.invoices).where((inv) {
+            // Merge stream + local provider so changes are instant:
+            // - delete: local removes first → filtered out immediately
+            // - add: local adds first → included immediately before stream catches up
+            // - stream catches DB changes from other sessions via Supabase realtime
+            final List<Invoice> allInvoices;
+            if (!snapshot.hasData) {
+              allInvoices = provider.invoices;
+            } else {
+              final streamList = snapshot.data!;
+              final streamIds  = {for (final i in streamList) i.id};
+              allInvoices = [
+                for (final si in streamList)
+                  // skip if locally deleted; prefer local version (has items)
+                  if (provider.store.findInvoice(si.id) != null)
+                    provider.store.findInvoice(si.id)!,
+                for (final li in provider.invoices)
+                  if (!streamIds.contains(li.id)) li, // locally added, not yet in stream
+              ]..sort((a, b) => b.date.compareTo(a.date));
+            }
+
+            final filtered = allInvoices.where((inv) {
               final client = provider.store.findClient(inv.clientId);
               final matchSearch = _search.isEmpty ||
                   inv.number.toLowerCase().contains(_search.toLowerCase()) ||
                   (client?.name.toLowerCase().contains(_search.toLowerCase()) ?? false);
               final matchMonth   = _monthFilter == null || inv.date.startsWith(_monthFilter!);
               final matchClient  = _clientFilter == null || inv.clientId == _clientFilter;
-              final matchGeneral = !_generalFilter || (inv.clientId == null || inv.clientId!.isEmpty);
-              return matchSearch && matchMonth && matchClient && matchGeneral;
+              return matchSearch && matchMonth && matchClient;
             }).toList();
 
             return Scaffold(
@@ -151,22 +169,11 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                                   : null,
                             ),
                             const SizedBox(width: 8),
-                            _GeneralButton(
-                              active: _generalFilter,
-                              onTap: () => setState(() {
-                                _generalFilter = !_generalFilter;
-                                if (_generalFilter) _clientFilter = null;
-                              }),
-                            ),
-                            const SizedBox(width: 8),
                             if (provider.clients.isNotEmpty)
                               _ClientFilterDropdown(
                                 clients: provider.clients,
                                 selectedId: _clientFilter,
-                                onChanged: (id) => setState(() {
-                                  _clientFilter = id;
-                                  if (id != null) _generalFilter = false;
-                                }),
+                                onChanged: (id) => setState(() => _clientFilter = id),
                               ),
                           ],
                         ),
@@ -295,14 +302,13 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
   }
 
   bool get _hasActiveFilter =>
-      _monthFilter != null || _clientFilter != null || _search.isNotEmpty || _generalFilter;
+      _monthFilter != null || _clientFilter != null || _search.isNotEmpty;
 
   void _clearFilters() {
     setState(() {
-      _search         = '';
-      _monthFilter    = null;
-      _clientFilter   = null;
-      _generalFilter  = false;
+      _search      = '';
+      _monthFilter = null;
+      _clientFilter = null;
     });
   }
 
@@ -381,47 +387,6 @@ class _MonthButton extends StatelessWidget {
                     size: 13, color: Colors.white),
               ),
             ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── General filter button ─────────────────────────────────────────────────────
-class _GeneralButton extends StatelessWidget {
-  final bool active;
-  final VoidCallback onTap;
-  const _GeneralButton({required this.active, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: active ? const Color(0xFF0B2218) : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: active ? const Color(0xFF0B2218) : const Color(0xFFE5E7EB),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.person_off_outlined,
-                size: 14,
-                color: active ? Colors.white : AppColors.muted),
-            const SizedBox(width: 5),
-            Text(
-              'General',
-              style: TextStyle(
-                fontSize: 12,
-                color: active ? Colors.white : AppColors.slate,
-                fontWeight: active ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
           ],
         ),
       ),

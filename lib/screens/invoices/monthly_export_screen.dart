@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../../models/models.dart';
 import '../../../providers/app_provider.dart';
 import '../../../services/invoice_html_service.dart';
+import '../../../services/monthly_pdf_service.dart';
 import '../../../services/pdf_service.dart';
 import '../../../theme.dart';
 
@@ -21,6 +23,7 @@ class MonthlyExportScreen extends StatefulWidget {
 class _MonthlyExportScreenState extends State<MonthlyExportScreen> {
   String? _month;
   String? _clientId;
+  bool _generating = false;
 
   List<Invoice> _matched(AppProvider p) => p.invoices.where((inv) {
         final okMonth  = _month == null || inv.date.startsWith(_month!);
@@ -93,50 +96,55 @@ class _MonthlyExportScreenState extends State<MonthlyExportScreen> {
     ));
   }
 
-  Future<void> _downloadMonthlyInvoice(
-      BuildContext context, AppProvider p) async {
+  Future<void> _generate(BuildContext context, AppProvider p) async {
     final invoices = _matched(p);
     if (invoices.isEmpty) return;
-
-    // Determine client (null if multiple clients are in the selection)
-    Client? client;
-    if (_clientId != null) {
-      client = p.store.findClient(_clientId!);
-    } else {
-      // Check if all matched invoices belong to one client
-      final clientIds = invoices.map((inv) => inv.clientId).toSet();
-      if (clientIds.length == 1 && clientIds.first != null) {
-        client = p.store.findClient(clientIds.first!);
+    setState(() => _generating = true);
+    try {
+      if (kIsWeb) {
+        Client? client;
+        if (_clientId != null) {
+          client = p.store.findClient(_clientId!);
+        } else {
+          final ids = invoices.map((i) => i.clientId).toSet();
+          if (ids.length == 1 && ids.first != null) client = p.store.findClient(ids.first!);
+        }
+        String monthLabel = _month ?? DateFormat('yyyy-MM').format(DateTime.now());
+        if (_month != null) {
+          try { monthLabel = DateFormat('MMM-yyyy').format(DateTime.parse('$_month-01')); } catch (_) {}
+        }
+        await InvoiceHtmlService.downloadMonthly(
+          invoices:   invoices,
+          client:     client,
+          settings:   p.settings,
+          brickTypes: p.store.brickTypes,
+          monthLabel: monthLabel,
+        );
+      } else {
+        final month = _month ?? DateFormat('yyyy-MM').format(DateTime.now());
+        await showMonthlyPdfPreview(
+          context:    context,
+          invoices:   invoices,
+          allClients: p.clients,
+          settings:   p.settings,
+          month:      month,
+          brickTypes: p.store.brickTypes,
+        );
       }
+    } finally {
+      if (mounted) setState(() => _generating = false);
     }
-
-    // Build month label for the filename
-    String monthLabel = _month ?? DateFormat('yyyy-MM').format(DateTime.now());
-    if (_month != null) {
-      try {
-        monthLabel =
-            DateFormat('MMM-yyyy').format(DateTime.parse('$_month-01'));
-      } catch (_) {}
-    }
-
-    await InvoiceHtmlService.downloadMonthly(
-      invoices:   invoices,
-      client:     client,
-      settings:   p.settings,
-      brickTypes: p.store.brickTypes,
-      monthLabel: monthLabel,
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
-        final sym     = provider.settings.currencySymbol;
-        final fmt     = NumberFormat('#,##0.00');
-        final months  = _availableMonths(provider);
+        final sym    = provider.settings.currencySymbol;
+        final fmt    = NumberFormat('#,##0.00');
+        final months = _availableMonths(provider);
         final matched = _matched(provider);
-        final total   = matched.fold<double>(0, (s, i) => s + i.total);
+        final total  = matched.fold<double>(0, (s, i) => s + i.total);
 
         // per-client breakdown
         final byClient = <String, ({List<Invoice> invoices, double total})>{};
@@ -153,7 +161,7 @@ class _MonthlyExportScreenState extends State<MonthlyExportScreen> {
           backgroundColor: const Color(0xFFF4F4F5),
           body: Column(
             children: [
-              // ── Header ────────────────────────────────────────────────
+              // ── Header ────────────────────────────────────────────────────
               Container(
                 color: Colors.white,
                 child: SafeArea(
@@ -185,7 +193,6 @@ class _MonthlyExportScreenState extends State<MonthlyExportScreen> {
                             ],
                           ),
                         ),
-                        // summary badge
                         if (matched.isNotEmpty)
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -211,14 +218,14 @@ class _MonthlyExportScreenState extends State<MonthlyExportScreen> {
                 ),
               ),
 
-              // ── Body ──────────────────────────────────────────────────
+              // ── Body ──────────────────────────────────────────────────────
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // ── Filter card ─────────────────────────────────
+                      // ── Filter card ────────────────────────────────────────
                       _Card(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,7 +233,6 @@ class _MonthlyExportScreenState extends State<MonthlyExportScreen> {
                             const _SectionChip(label: 'FILTER BY'),
                             const SizedBox(height: 14),
 
-                            // Month label + chips
                             Text('Month',
                                 style: GoogleFonts.inter(
                                     fontSize: 12,
@@ -240,8 +246,7 @@ class _MonthlyExportScreenState extends State<MonthlyExportScreen> {
                                   _Chip(
                                     label: 'All',
                                     selected: _month == null,
-                                    onTap: () =>
-                                        setState(() => _month = null),
+                                    onTap: () => setState(() => _month = null),
                                   ),
                                   ...months.map((m) => _Chip(
                                         label: _monthLabel(m),
@@ -258,7 +263,6 @@ class _MonthlyExportScreenState extends State<MonthlyExportScreen> {
                               const Divider(height: 1),
                               const SizedBox(height: 16),
 
-                              // Client
                               Text('Client',
                                   style: GoogleFonts.inter(
                                       fontSize: 12,
@@ -311,7 +315,7 @@ class _MonthlyExportScreenState extends State<MonthlyExportScreen> {
 
                       const SizedBox(height: 16),
 
-                      // ── Summary card ────────────────────────────────
+                      // ── Summary card ───────────────────────────────────────
                       if (matched.isEmpty)
                         _Card(
                           child: Column(
@@ -360,8 +364,7 @@ class _MonthlyExportScreenState extends State<MonthlyExportScreen> {
                                   final count = e.value.invoices.length;
                                   final sub = e.value.total;
                                   return Padding(
-                                    padding: const EdgeInsets.only(
-                                        bottom: 8),
+                                    padding: const EdgeInsets.only(bottom: 8),
                                     child: Row(
                                       children: [
                                         Container(
@@ -392,8 +395,7 @@ class _MonthlyExportScreenState extends State<MonthlyExportScreen> {
                                                 fontSize: 13,
                                                 fontWeight: FontWeight.w600,
                                                 color: AppColors.ink),
-                                            overflow:
-                                                TextOverflow.ellipsis,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                         Text(
@@ -424,28 +426,32 @@ class _MonthlyExportScreenState extends State<MonthlyExportScreen> {
                 ),
               ),
 
-              // ── Pinned bottom actions ──────────────────────────────────
+              // ── Pinned bottom actions ──────────────────────────────────────
               Container(
                 color: Colors.white,
                 padding: EdgeInsets.fromLTRB(
-                    20,
-                    12,
-                    20,
-                    12 + MediaQuery.of(context).padding.bottom),
+                    20, 12, 20, 12 + MediaQuery.of(context).padding.bottom),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Primary: Monthly Invoice PDF
                     ElevatedButton.icon(
-                      onPressed: matched.isEmpty
+                      onPressed: (matched.isEmpty || _generating)
                           ? null
-                          : () => _downloadMonthlyInvoice(context, provider),
-                      icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                          : () => _generate(context, provider),
+                      icon: _generating
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.picture_as_pdf_outlined, size: 18),
                       label: Text(
                         matched.isEmpty
                             ? 'No invoices match'
-                            : 'Generate Monthly Invoice PDF',
+                            : _generating
+                                ? 'Generating…'
+                                : 'Generate Monthly Invoice PDF',
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                       style: ElevatedButton.styleFrom(
@@ -457,7 +463,6 @@ class _MonthlyExportScreenState extends State<MonthlyExportScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    // Secondary: Spreadsheet view
                     OutlinedButton.icon(
                       onPressed: matched.isEmpty
                           ? null
@@ -539,9 +544,7 @@ class _Chip extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   const _Chip(
-      {required this.label,
-      required this.selected,
-      required this.onTap});
+      {required this.label, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -549,8 +552,7 @@ class _Chip extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(right: 8),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
           color: selected ? _kDark : Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -562,8 +564,7 @@ class _Chip extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: 12,
-            fontWeight:
-                selected ? FontWeight.w600 : FontWeight.normal,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
             color: selected ? Colors.white : AppColors.slate,
           ),
         ),
@@ -653,7 +654,6 @@ class _SpreadsheetPageState extends State<_SpreadsheetPage> {
     });
   }
 
-  // No, Date, Invoice NO, Description, Qty, Unit Price, Total
   static const _colFlex = [35, 75, 110, 200, 75, 110, 145];
   static const _headers = ['No', 'Date', 'Invoice NO', 'Description', 'Qty', 'Unit Price', 'Total'];
 
@@ -794,8 +794,7 @@ class _SpreadsheetPageState extends State<_SpreadsheetPage> {
                 const SizedBox(width: 6),
                 Text(
                   '${_rows.length} row${_rows.length == 1 ? '' : 's'}  •  tap any cell to edit',
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.slate),
+                  style: const TextStyle(fontSize: 12, color: AppColors.slate),
                 ),
                 const Spacer(),
                 Text('$sym${_fmt.format(total)}',
@@ -824,18 +823,16 @@ class _SpreadsheetPageState extends State<_SpreadsheetPage> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: LayoutBuilder(
                 builder: (ctx, constraints) {
-                  const minW     = 750.0;
+                  const minW      = 750.0;
                   final totalFlex = _colFlex.fold(0, (a, b) => a + b);
                   final isNarrow  = constraints.maxWidth < minW;
                   final tableW    = isNarrow ? minW : constraints.maxWidth;
-                  // Last column takes the remainder to avoid floating-point gap.
-                  final firstN   = _colFlex.sublist(0, _colFlex.length - 1)
+                  final firstN    = _colFlex.sublist(0, _colFlex.length - 1)
                       .map((f) => f / totalFlex * tableW)
                       .toList();
                   final lastColW  = tableW - firstN.fold(0.0, (a, b) => a + b);
                   final colW      = [...firstN, lastColW];
 
-                  // ── Narrow (mobile): nested scrolls, no Expanded inside scroll ──
                   if (isNarrow) {
                     return SingleChildScrollView(
                       child: SingleChildScrollView(
@@ -866,7 +863,6 @@ class _SpreadsheetPageState extends State<_SpreadsheetPage> {
                     );
                   }
 
-                  // ── Wide (desktop): fills width, Expanded ListView ──────────────
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -958,8 +954,7 @@ class _SpreadsheetPageState extends State<_SpreadsheetPage> {
                 ? null
                 : const BoxDecoration(
                     border: Border(
-                      right: BorderSide(
-                          color: Colors.white24, width: 0.5),
+                      right: BorderSide(color: Colors.white24, width: 0.5),
                     ),
                   ),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -1030,7 +1025,6 @@ class _SpreadsheetRowState extends State<_SpreadsheetRow> {
       ),
       child: Row(
         children: [
-          // No column — read-only row number, no controller needed
           Container(
             width: widget.colW[0],
             decoration: const BoxDecoration(
@@ -1051,9 +1045,7 @@ class _SpreadsheetRowState extends State<_SpreadsheetRow> {
               keyboard: TextInputType.number),
           _cell(r.price, widget.colW[5],
               align: TextAlign.right,
-              keyboard:
-                  const TextInputType.numberWithOptions(decimal: true)),
-          // Last column — no right border, fills exactly to edge
+              keyboard: const TextInputType.numberWithOptions(decimal: true)),
           Container(
             width: widget.colW[6],
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),

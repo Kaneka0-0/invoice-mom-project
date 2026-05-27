@@ -77,7 +77,6 @@ class InvoiceViewScreen extends StatelessWidget {
                                   context,
                                   invoice: invoice,
                                   client: client,
-
                                   settings: provider.settings,
                                 ),
                               ),
@@ -646,7 +645,7 @@ class _ItemsTable extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600)),
               ),
-              const _HeaderCell('ចំនួន'),
+              const _HeaderCell('តាន់'),
               _HeaderCell('Price'),
               _HeaderCell('Total', last: true),
             ],
@@ -730,7 +729,7 @@ class _HeaderCell extends StatelessWidget {
 String _brickName(String priceType, String category, bool isKh) {
   if (isKh) {
     final t = priceType == 'burned' ? 'ឥដ្ឋខ្លោច' : 'ឥដ្ឋធម្មតា';
-    final c = category == 'sol' ? 'ចំនួន' : 'ប្រហោង';
+    final c = category == 'sol' ? 'តាន់' : 'ប្រហោង';
     return '$t $c';
   }
   final t = priceType == 'burned' ? 'Burnt' : 'Normal';

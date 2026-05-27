@@ -55,7 +55,7 @@ create policy "Allow all for anon" on brick_categories for all to anon using (tr
 -- seed defaults (idempotent)
 insert into brick_categories (id, name, name_kh) values
   ('00000000-0000-0000-0001-000000000001', 'Hol', 'ប្រហោង'),
-  ('00000000-0000-0000-0001-000000000002', 'Sol', 'ចំនួន')
+  ('00000000-0000-0000-0001-000000000002', 'Sol', 'តាន់')
 on conflict (id) do nothing;
 
 -- ── Clients ────────────────────────────────────────────────────────────────
@@ -253,7 +253,7 @@ end $$;
 
 insert into brick_categories (id, name, name_kh) values
   ('00000000-0000-0000-0001-000000000001', 'Hol', 'ប្រហោង'),
-  ('00000000-0000-0000-0001-000000000002', 'Sol', 'ចំនួន')
+  ('00000000-0000-0000-0001-000000000002', 'Sol', 'តាន់')
 on conflict (id) do nothing;
 
 -- clean up brick_types: drop unused 'category' column, ensure name_kh exists

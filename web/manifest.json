@@ -1,6 +1,6 @@
 {
-    "name": "panha_invoice",
-    "short_name": "panha_invoice",
+    "name": "LH Invoice",
+    "short_name": "LH Invoice",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

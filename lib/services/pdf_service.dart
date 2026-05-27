@@ -367,7 +367,7 @@ class PdfService {
     );
   }
 
-  // ── Spreadsheet export (editable table → PDF) ─────────────────────────────
+  // ── Spreadsheet export (editable table → PDF) ────────────────────────────
   static Future<Uint8List> generateSpreadsheetExport({
     required List<Map<String, String>> rows,
     required AppSettings settings,
@@ -402,15 +402,12 @@ class PdfService {
     }
 
     return [
-      // Stats
       pw.Row(children: [
         pw.Expanded(child: _statBox('Rows', '${rows.length}')),
         pw.SizedBox(width: 8),
         pw.Expanded(child: _statBox('Total', '$sym${fmt.format(total)}')),
       ]),
       pw.SizedBox(height: 14),
-
-      // Table
       pw.Table(
         border: const pw.TableBorder(
           top: pw.BorderSide(color: _forest, width: 1.5),
@@ -442,15 +439,11 @@ class PdfService {
           ),
           ...rows.asMap().entries.map((entry) {
             final isEven = entry.key.isEven;
-            final r = entry.value;
-            final cells = [
-              '${entry.key + 1}',
-              r['date'] ?? '',
-              r['number'] ?? '',
-              r['brickType'] ?? '',
-              r['qty'] ?? '',
-              '$sym${r['unitPrice'] ?? ''}',
-              '$sym${r['total'] ?? ''}',
+            final r      = entry.value;
+            final cells  = [
+              '${entry.key + 1}', r['date'] ?? '', r['number'] ?? '',
+              r['brickType'] ?? '', r['qty'] ?? '',
+              '$sym${r['unitPrice'] ?? ''}', '$sym${r['total'] ?? ''}',
             ];
             return pw.TableRow(
               decoration: pw.BoxDecoration(color: isEven ? PdfColors.white : _pale),

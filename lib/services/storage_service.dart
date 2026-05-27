@@ -69,18 +69,18 @@ class StorageService {
   }
 
   // ── Invoice number ────────────────────────────────────────────────────────
-  // Derived from actual invoice data so it never resets on sync.
-  String nextInvoiceNumber() {
-    final year = DateTime.now().year;
-    final prefix = 'INV-$year-';
-    int maxNum = 0;
+  // Format: MMDDYY-N (e.g. 52826-0 = May 28 2026, first invoice of the day).
+  // Sequence resets to 0 each new day; increments by 1 per additional invoice.
+  String nextInvoiceNumber(DateTime date) {
+    final prefix = '${date.month}${date.day.toString().padLeft(2, '0')}${(date.year % 100).toString().padLeft(2, '0')}-';
+    int maxSeq = -1;
     for (final inv in invoices) {
       if (inv.number.startsWith(prefix)) {
-        final n = int.tryParse(inv.number.substring(prefix.length)) ?? 0;
-        if (n > maxNum) maxNum = n;
+        final seq = int.tryParse(inv.number.substring(prefix.length)) ?? -1;
+        if (seq > maxSeq) maxSeq = seq;
       }
     }
-    return 'INV-$year-${(maxNum + 1).toString().padLeft(4, '0')}';
+    return '$prefix${maxSeq + 1}';
   }
 
   // ── Lookup helpers ────────────────────────────────────────────────────────

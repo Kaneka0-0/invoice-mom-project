@@ -85,15 +85,15 @@ class S {
   // ── Borrow ────────────────────────────────────────────────────────────
   String get vendor => get('Vendor', 'អ្នកលក់');
   String get borrowDate => get('Borrow Date', 'កាលបរិច្ឆេទខ្ចី');
-  String get amountOwed => get('Amount Owed', 'ចំនួនជំពាក់');
+  String get amountOwed => get('Amount Owed', 'តាន់ជំពាក់');
   String get paymentDate => get('Payment Date', 'កាលបរិច្ឆេទបង់');
   String get owed => get('Owed', 'ជំពាក់');
   String get selectVendor => get('Select Vendor', 'ជ្រើសអ្នកលក់');
 
   // ── Dashboard Stats ───────────────────────────────────────────────────
-  String get totalInvoices => get('Total Invoices', 'ចំនួនវិក្កយបត្រ');
+  String get totalInvoices => get('Total Invoices', 'តាន់វិក្កយបត្រ');
   String get totalRevenue => get('Total Revenue', 'ចំណូលសរុប');
-  String get pendingAmount => get('Pending', 'ចំនួនរង់ចាំ');
+  String get pendingAmount => get('Pending', 'តាន់រង់ចាំ');
   String get debtToVendors => get('Debt to Vendors', '빚ស់អ្នកលក់');
   String get recentInvoices => get('Recent Invoices', 'វិក្កយបត្រថ្មីៗ');
   String get thisMonth => get('This Month', 'ខែនេះ');
@@ -116,8 +116,6 @@ class S {
   String get currency => get('Currency', 'រូបិយប័ណ្ណ');
 
   // ── Confirmations ─────────────────────────────────────────────────────
-  String deleteConfirm(String item) =>
-      get('Delete this $item?', 'លុប$item នេះ?');
-  String get cannotUndo =>
-      get('This action cannot be undone.', 'សកម្មភាពនេះមិនអាចត្រឡប់វិញបាន។');
+  String deleteConfirm(String item) => get('Delete this $item?', 'លុប$item នេះ?');
+  String get cannotUndo => get('This action cannot be undone.', 'សកម្មភាពនេះមិនអាចត្រឡប់វិញបាន។');
 }

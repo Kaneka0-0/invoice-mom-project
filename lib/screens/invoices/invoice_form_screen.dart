@@ -28,6 +28,7 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
   bool _saving = false;
 
   final _depositCtrl = TextEditingController();
+  final _numberCtrl  = TextEditingController();
 
   // Fixed 4 slots: normal/hol, normal/sol, burned/hol, burned/sol
   late final List<_BrickEntry> _entries;
@@ -47,6 +48,7 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
   @override
   void dispose() {
     _depositCtrl.dispose();
+    _numberCtrl.dispose();
     for (final e in _entries) {
       e.dispose();
     }
@@ -73,6 +75,7 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
 
     setState(() {
       _date = inv.date;
+      _numberCtrl.text = inv.number;
       _clientId = inv.clientId;
       _deliveryLocation = inv.deliveryLocation;
       if (inv.deposit > 0) {
@@ -182,6 +185,18 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
                   ),
                   const SizedBox(height: 14),
 
+                  // ── Invoice number ────────────────────────────────────
+                  _FormCard(
+                    icon: Icons.tag_rounded,
+                    title: 'Invoice Number',
+                    child: _InvoiceNumberField(
+                      controller: _numberCtrl,
+                      date: _date,
+                      provider: provider,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
                   // ── Client ────────────────────────────────────────────
                   _FormCard(
                     icon: Icons.person_outline_rounded,
@@ -279,7 +294,7 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
                         _BrickGroup(
                           label: provider.isKh ? 'ឥដ្ឋធម្មតា' : 'Normal',
                           holLabel: provider.isKh ? 'ប្រហោង' : 'Hol',
-                          solLabel: provider.isKh ? 'ចំនួន' : 'Sol',
+                          solLabel: provider.isKh ? 'តាន់' : 'Sol',
                           holEntry: _entries[0],
                           solEntry: _entries[1],
                           sym: sym,
@@ -289,7 +304,7 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
                         _BrickGroup(
                           label: provider.isKh ? 'ឥដ្ឋខ្លោច' : 'Burnt',
                           holLabel: provider.isKh ? 'ប្រហោង' : 'Hol',
-                          solLabel: provider.isKh ? 'ចំនួន' : 'Sol',
+                          solLabel: provider.isKh ? 'តាន់' : 'Sol',
                           holEntry: _entries[2],
                           solEntry: _entries[3],
                           sym: sym,
@@ -371,6 +386,7 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
       if (widget.id == null) {
         savedInv = await provider.addInvoice(
           date: _date,
+          number: _numberCtrl.text.trim().isEmpty ? null : _numberCtrl.text.trim(),
           clientId: _clientId,
           deliveryLocation: _deliveryLocation,
           items: items,
@@ -390,6 +406,7 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
       } else {
         final inv = provider.store.findInvoice(widget.id)!;
         inv.date = _date;
+        if (_numberCtrl.text.trim().isNotEmpty) inv.number = _numberCtrl.text.trim();
         inv.clientId = _clientId;
         inv.deliveryLocation = _deliveryLocation;
         inv.items = items;
@@ -1047,6 +1064,40 @@ class _ClientPickerDropdownState extends State<_ClientPickerDropdown> {
           const SizedBox(height: 6),
         ],
       ),
+    );
+  }
+}
+
+// ── Invoice number field ──────────────────────────────────────────────────────
+
+class _InvoiceNumberField extends StatelessWidget {
+  final TextEditingController controller;
+  final String date;
+  final AppProvider provider;
+
+  const _InvoiceNumberField({
+    required this.controller,
+    required this.date,
+    required this.provider,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final parsed    = DateTime.tryParse(date) ?? DateTime.now();
+    final autoNum   = provider.store.nextInvoiceNumber(parsed);
+
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        hintText: autoNum,
+        hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
+        helperText: 'Leave blank to use auto: $autoNum',
+        helperStyle: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+        isDense: true,
+        prefixIcon: const Icon(Icons.tag_rounded, size: 16, color: AppColors.muted),
+      ),
+      keyboardType: TextInputType.text,
+      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
     );
   }
 }
