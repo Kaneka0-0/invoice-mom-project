@@ -636,7 +636,6 @@ class _SpreadsheetPage extends StatefulWidget {
 
 class _SpreadsheetPageState extends State<_SpreadsheetPage> {
   late List<_EditRow> _rows;
-  bool _exporting = false;
   bool _exportingMonthly = false;
 
   void _resetRows() {
@@ -727,29 +726,26 @@ class _SpreadsheetPageState extends State<_SpreadsheetPage> {
     'total':     r.isEmpty ? '' : _fmt.format(r.total),
   }).toList();
 
-  Future<void> _export() async {
-    setState(() => _exporting = true);
-    try {
-      final sym   = widget.provider.settings.currencySymbol;
-      final bytes = await PdfService.generateSpreadsheetExport(
-        rows: _rowMaps(), settings: widget.provider.settings,
-        title: widget.title, sym: sym,
-      );
-      if (mounted) await Printing.layoutPdf(onLayout: (_) => bytes);
-    } finally {
-      if (mounted) setState(() => _exporting = false);
-    }
-  }
-
   Future<void> _exportMonthlyInvoice() async {
     setState(() => _exportingMonthly = true);
     try {
-      await InvoiceHtmlService.downloadMonthlyFromRows(
-        rows:       _rowMaps(),
-        client:     widget.client,
-        settings:   widget.provider.settings,
-        monthLabel: widget.monthLabel,
-      );
+      if (kIsWeb) {
+        await InvoiceHtmlService.downloadMonthlyFromRows(
+          rows:       _rowMaps(),
+          client:     widget.client,
+          settings:   widget.provider.settings,
+          monthLabel: widget.monthLabel,
+        );
+      } else {
+        final sym   = widget.provider.settings.currencySymbol;
+        final bytes = await PdfService.generateSpreadsheetExport(
+          rows:     _rowMaps(),
+          settings: widget.provider.settings,
+          title:    widget.title,
+          sym:      sym,
+        );
+        if (mounted) await Printing.layoutPdf(onLayout: (_) => bytes);
+      }
     } finally {
       if (mounted) setState(() => _exportingMonthly = false);
     }
@@ -912,25 +908,6 @@ class _SpreadsheetPageState extends State<_SpreadsheetPage> {
                   backgroundColor: _kDark,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                icon: _exporting
-                    ? const SizedBox(
-                        width: 16, height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.table_chart_outlined, size: 18),
-                label: Text(_exporting
-                    ? 'Generating…'
-                    : 'Export as Spreadsheet PDF'),
-                onPressed: (_rows.isEmpty || _exporting) ? null : _export,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _kDark,
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  side: const BorderSide(color: _kDark, width: 1.5),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                 ),
