@@ -168,10 +168,20 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> deleteClient(String id) async {
+    final backup = _store.clients.firstWhere((c) => c.id == id,
+        orElse: () => throw StateError('not found'));
     _store.clients.removeWhere((c) => c.id == id);
     await _store.save();
     notifyListeners();
-    SupabaseSync.deleteClient(id).catchError((_) {});
+    try {
+      await SupabaseSync.deleteClient(id);
+    } catch (_) {
+      // Roll back if Supabase delete failed
+      _store.clients.add(backup);
+      await _store.save();
+      notifyListeners();
+      rethrow;
+    }
   }
 
   // ── Invoices ──────────────────────────────────────────────────────────────

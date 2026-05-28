@@ -33,7 +33,24 @@ class _ClientListScreenState extends State<ClientListScreen> {
         return StreamBuilder<List<Client>>(
           stream: _clientsStream,
           builder: (context, snapshot) {
-            final filtered = (snapshot.data ?? provider.clients)
+            // Merge stream + local provider so changes are instant:
+            // delete: local removes first → filtered out immediately
+            // add: local adds first → visible before stream catches up
+            final List<Client> allClients;
+            if (!snapshot.hasData) {
+              allClients = provider.clients;
+            } else {
+              final streamList = snapshot.data!;
+              final providerIds = {for (final c in provider.clients) c.id};
+              allClients = [
+                for (final sc in streamList)
+                  if (providerIds.contains(sc.id)) sc,
+                for (final lc in provider.clients)
+                  if (!streamList.any((sc) => sc.id == lc.id)) lc,
+              ];
+            }
+
+            final filtered = allClients
                 .where((c) =>
                     _search.isEmpty ||
                     c.name.toLowerCase().contains(_search.toLowerCase()) ||
@@ -228,8 +245,18 @@ class _ClientListScreenState extends State<ClientListScreen> {
                                       final ok = await showDeleteDialog(
                                           context,
                                           itemName: 'Client');
-                                      if (ok && context.mounted) {
+                                      if (!ok || !context.mounted) return;
+                                      try {
                                         await provider.deleteClient(c.id);
+                                      } catch (_) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Failed to delete client. Please try again.'),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
                                       }
                                     },
                                   ),
