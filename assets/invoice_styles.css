@@ -230,8 +230,8 @@ body { background: #d8d8d8; display: flex; justify-content: center; padding: 20p
   display: flex;
   flex-direction: column;
 }
-.seller-box { left: 32px;  width: 244px; height: 87px; gap: 7px; }
-.buyer-box  { left: 302px; width: 225px; height: 88px; gap: 11px; }
+.seller-box { left: 32px;  width: 244px; min-height: 87px;  height: auto; gap: 7px; }
+.buyer-box  { left: 286px; width: 241px; min-height: 88px; height: auto; gap: 11px; }
 
 .box-label {
   font-family: 'Kantumruy Pro', sans-serif;
