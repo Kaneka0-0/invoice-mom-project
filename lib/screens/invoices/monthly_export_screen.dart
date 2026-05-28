@@ -728,6 +728,21 @@ class _SpreadsheetPageState extends State<_SpreadsheetPage> {
 
   Future<void> _exportMonthlyInvoice() async {
     setState(() => _exportingMonthly = true);
+    if (!kIsWeb && mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Text('Generating PDF…'),
+            ],
+          ),
+        ),
+      );
+    }
     try {
       if (kIsWeb) {
         await InvoiceHtmlService.downloadMonthlyFromRows(
@@ -744,8 +759,14 @@ class _SpreadsheetPageState extends State<_SpreadsheetPage> {
           title:    widget.title,
           sym:      sym,
         );
-        if (mounted) await Printing.layoutPdf(onLayout: (_) => bytes);
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).pop();
+          await Printing.layoutPdf(onLayout: (_) => bytes);
+        }
       }
+    } catch (_) {
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+      rethrow;
     } finally {
       if (mounted) setState(() => _exportingMonthly = false);
     }
