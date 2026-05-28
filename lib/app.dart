@@ -14,6 +14,7 @@ import 'screens/clients/client_list_screen.dart';
 import 'screens/clients/client_form_screen.dart';
 import 'screens/invoices/monthly_export_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/splash_screen.dart';
 
 // Notifies GoRouter to re-evaluate redirects whenever Supabase auth state changes.
 class _AuthNotifier extends ChangeNotifier {
@@ -37,22 +38,7 @@ class PanhaApp extends StatelessWidget {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
             theme: AppTheme.light,
-            home: const Scaffold(
-              backgroundColor: AppColors.canvas,
-              body: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('🧱', style: TextStyle(fontSize: 48)),
-                    SizedBox(height: 16),
-                    CircularProgressIndicator(
-                      color: AppColors.forest,
-                      strokeWidth: 2.5,
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            home: const SplashScreen(),
           );
         }
         return MaterialApp.router(
