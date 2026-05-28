@@ -241,24 +241,7 @@ class _ClientListScreenState extends State<ClientListScreen> {
                                         Icons.delete_outline,
                                         size: 18,
                                         color: AppColors.danger),
-                                    onPressed: () async {
-                                      final ok = await showDeleteDialog(
-                                          context,
-                                          itemName: 'Client');
-                                      if (!ok || !context.mounted) return;
-                                      try {
-                                        await provider.deleteClient(c.id);
-                                      } catch (_) {
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(
-                                              content: Text('Failed to delete client. Please try again.'),
-                                              backgroundColor: Colors.red,
-                                            ),
-                                          );
-                                        }
-                                      }
-                                    },
+                                    onPressed: () => _handleDelete(context, provider, c),
                                   ),
                                 ],
                               ),
@@ -277,6 +260,228 @@ class _ClientListScreenState extends State<ClientListScreen> {
           ),
         );
           },
+        );
+      },
+    );
+  }
+
+  Future<void> _handleDelete(
+      BuildContext context, AppProvider provider, Client c) async {
+    final linked =
+        provider.invoices.where((i) => i.clientId == c.id).toList();
+
+    if (linked.isNotEmpty) {
+      await showDialog(
+        context: context,
+        builder: (_) => _LinkedInvoicesDialog(client: c),
+      );
+      return;
+    }
+
+    final ok = await showDeleteDialog(context, itemName: 'Client');
+    if (!ok || !context.mounted) return;
+    try {
+      await provider.deleteClient(c.id);
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to delete client. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+}
+
+// ── Dialog shown when client has linked invoices ──────────────────────────────
+
+class _LinkedInvoicesDialog extends StatefulWidget {
+  final Client client;
+  const _LinkedInvoicesDialog({required this.client});
+
+  @override
+  State<_LinkedInvoicesDialog> createState() => _LinkedInvoicesDialogState();
+}
+
+class _LinkedInvoicesDialogState extends State<_LinkedInvoicesDialog> {
+  bool _deleting = false;
+
+  static const _dark   = Color(0xFF0B2218);
+  static const _danger = Color(0xFFDC2626);
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AppProvider>(
+      builder: (context, provider, _) {
+        final invoices = provider.invoices
+            .where((i) => i.clientId == widget.client.id)
+            .toList();
+
+        // All invoices cleared — show a "now delete client" state
+        if (invoices.isEmpty) {
+          return AlertDialog(
+            title: const Text('All invoices deleted'),
+            content: Text(
+                'All invoices for ${widget.client.name} have been removed.\n'
+                'You can now delete the client.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: _danger, foregroundColor: Colors.white),
+                onPressed: () async {
+                  try {
+                    await provider.deleteClient(widget.client.id);
+                    if (context.mounted) Navigator.pop(context);
+                  } catch (_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content:
+                              Text('Failed to delete client. Try again.'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Text('Delete Client'),
+              ),
+            ],
+          );
+        }
+
+        return AlertDialog(
+          titlePadding:
+              const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          contentPadding:
+              const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          title: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded,
+                  color: _danger, size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${widget.client.name} has '
+                  '${invoices.length} invoice'
+                  '${invoices.length == 1 ? '' : 's'}',
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Delete the invoices below first, or tap "Delete All" to remove everything at once.',
+                  style:
+                      TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                ),
+                const SizedBox(height: 12),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 280),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: invoices.length,
+                    separatorBuilder: (_, __) =>
+                        const Divider(height: 1),
+                    itemBuilder: (ctx, i) {
+                      final inv = invoices[i];
+                      final label = inv.number.isNotEmpty
+                          ? inv.number
+                          : 'No number';
+                      return ListTile(
+                        dense: true,
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 4),
+                        leading: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: _dark.withAlpha(12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                              Icons.receipt_outlined,
+                              size: 16,
+                              color: _dark),
+                        ),
+                        title: Text(label,
+                            style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600)),
+                        subtitle: Text(inv.date,
+                            style: const TextStyle(fontSize: 11)),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline,
+                              color: _danger, size: 18),
+                          tooltip: 'Delete invoice',
+                          onPressed: () async {
+                            await provider.deleteInvoice(inv.id);
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton.icon(
+              icon: _deleting
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.delete_sweep_outlined, size: 16),
+              label: Text(_deleting
+                  ? 'Deleting…'
+                  : 'Delete All (${invoices.length}) & Client'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _danger,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: _deleting
+                  ? null
+                  : () async {
+                      setState(() => _deleting = true);
+                      try {
+                        for (final inv in List.of(invoices)) {
+                          await provider.deleteInvoice(inv.id);
+                        }
+                        await provider.deleteClient(widget.client.id);
+                        if (context.mounted) Navigator.pop(context);
+                      } catch (_) {
+                        setState(() => _deleting = false);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content:
+                                  Text('Failed to delete. Please try again.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+            ),
+          ],
         );
       },
     );
