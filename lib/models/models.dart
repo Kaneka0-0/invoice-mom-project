@@ -567,7 +567,7 @@ class Invoice {
     final rawItems = j['invoice_items'] ?? j['items'];
     return Invoice(
       id: j['id'],
-      number: j['number'],
+      number: j['number'] ?? '',
       clientId: j['client_id'] ?? j['clientId'],
       date: j['date'] ?? '',
       status: InvoiceStatusLabel.fromString(j['status']),

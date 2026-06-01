@@ -69,10 +69,10 @@ class StorageService {
   }
 
   // ── Invoice number ────────────────────────────────────────────────────────
-  // Format: MMDDYY-N (e.g. 52826-0 = May 28 2026, first invoice of the day).
+  // Format: DDMMYY-N (e.g. 190626-0 = June 19 2026, first invoice of the day).
   // Sequence resets to 0 each new day; increments by 1 per additional invoice.
   String nextInvoiceNumber(DateTime date) {
-    final prefix = '${date.month}${date.day.toString().padLeft(2, '0')}${(date.year % 100).toString().padLeft(2, '0')}-';
+    final prefix = '${date.day.toString().padLeft(2, '0')}${date.month.toString().padLeft(2, '0')}${(date.year % 100).toString().padLeft(2, '0')}-';
     int maxSeq = -1;
     for (final inv in invoices) {
       if (inv.number.startsWith(prefix)) {

@@ -346,8 +346,17 @@ body { background: #ffffff; }
   line-height: 14px;
   color: #264530;
 }
+.sum-qty {
+  text-align: right;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 11px;
+  line-height: 14px;
+  color: #264530;
+}
 .grand-total-row .sum-label,
-.grand-total-row .sum-val {
+.grand-total-row .sum-val,
+.grand-total-row .sum-qty {
   background: rgba(115, 195, 29, 0.25);
 }
 

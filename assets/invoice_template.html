@@ -61,11 +61,9 @@
 
     <!-- ── Invoice number + date ────────────────────────────────────── -->
     <div class="invoice-ref">
-      <div class="ref-row">
-        <span class="ref-label">No</span>
-        <span class="ref-number">{{INVOICE_NUMBER}}</span>
-      </div>
-      <div class="ref-date">ថ្ងៃ ទី {{DAY}} ខែ {{MONTH}} ឆ្នំ {{YEAR}}</div>
+      {{INVOICE_NUMBER_SECTION}}
+      <!-- blank date (fill by hand): <div class="ref-date">ថ្ងៃទី&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ខែ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ឆ្នាំ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div> -->
+      <div class="ref-date">ថ្ងៃទី {{DAY}} ខែ {{MONTH}} ឆ្នំ {{YEAR}}</div>
     </div>
 
     <!-- ── Seller box ─────────────────────────────────────────────────── -->
@@ -182,6 +180,9 @@
         <div class="tr-amount">{{BALANCE}}</div>
       </div>
     </div>
+
+    <!-- ── Note ─────────────────────────────────────────────────────────── -->
+    {{NOTE_SECTION}}
 
     <!-- ── Signatures ─────────────────────────────────────────────────── -->
     <div class="signatures-area">

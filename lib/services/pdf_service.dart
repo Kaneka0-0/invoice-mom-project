@@ -107,12 +107,6 @@ class PdfService {
     double px(double x) => x * pageW / svgW;
     double py(double y) => y * pageH / svgH;
 
-    // Parse date
-    DateTime? dt;
-    try { dt = DateTime.parse(invoice.date); } catch (_) {}
-    final day   = dt != null ? '${dt.day}'.padLeft(2, '0') : '__';
-    final month = dt != null ? '${dt.month}'.padLeft(2, '0') : '__';
-    final year  = dt != null ? '${dt.year}' : '____';
 
     // pw.Positioned has no width/height — size via pw.SizedBox child
     pw.Widget whiteBox(double x, double y, double w, double h) =>
@@ -245,11 +239,12 @@ class PdfService {
           left: px(290), top: py(81),
           child: pw.Row(mainAxisSize: pw.MainAxisSize.min, children: [
             pw.Text('No  ', style: pw.TextStyle(fontSize: 9, color: _ink)),
-            pw.Text(invoice.number,
-                style: pw.TextStyle(
-                    fontSize: 9,
-                    fontWeight: pw.FontWeight.bold,
-                    color: _invRed)),
+            if (invoice.number.isNotEmpty)
+              pw.Text(invoice.number,
+                  style: pw.TextStyle(
+                      fontSize: 9,
+                      fontWeight: pw.FontWeight.bold,
+                      color: _invRed)),
           ]),
         ),
 
@@ -257,7 +252,7 @@ class PdfService {
         whiteBox(243, 96, 153, 16),
         pw.Positioned(
           left: px(244), top: py(98),
-          child: pw.Text('ថ្ងៃទី $day  ខែ $month  ឆ្នាំ $year',
+          child: pw.Text('ថ្ងៃទី               ខែ               ឆ្នាំ              ',
               style: pw.TextStyle(fontSize: 8, color: _ink)),
         ),
 

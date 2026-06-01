@@ -47,7 +47,7 @@ class InvoiceHtmlService {
     final acledaB64   = await _tryB64('assets/invoice-image/Aceleda.png');
     final telegramB64 = await _tryB64('assets/invoice-image/telegram.jpg');
 
-    // ── Date parsing ──────────────────────────────────────────────────────────
+    // ── Date parsing ─────────────────────────────────────────────────────────
     DateTime? dt;
     try { dt = DateTime.parse(invoice.date); } catch (_) {}
     final day   = dt != null ? '${dt.day}'.padLeft(2, '0') : '__';
@@ -94,7 +94,10 @@ class InvoiceHtmlService {
           ? 'data:image/png;base64,$logoB64' : '')
       .replaceAll('{{COMPANY_NAME}}',    _e(settings.companyName))
       .replaceAll('{{PHONE_LINES}}',     phoneLines)
-      .replaceAll('{{INVOICE_NUMBER}}',  _e(invoice.number))
+      .replaceAll('{{INVOICE_NUMBER_SECTION}}',
+          '<div class="ref-row"><span class="ref-label">No</span>'
+          '${invoice.number.isNotEmpty ? '<span class="ref-number">${_e(invoice.number)}</span>' : ''}'
+          '</div>')
       .replaceAll('{{DAY}}',             day)
       .replaceAll('{{MONTH}}',           month)
       .replaceAll('{{YEAR}}',            year)
@@ -109,14 +112,16 @@ class InvoiceHtmlService {
       .replaceAll('{{R4_QTY}}', rowQty(3)).replaceAll('{{R4_UP}}', rowUp(3)).replaceAll('{{R4_AMT}}', rowAmt(3))
       .replaceAll('{{TOTAL}}',           '$sym${_fmt.format(total)}')
       .replaceAll('{{DEPOSIT}}',         deposit > 0
-          ? '$sym${_fmt.format(deposit)}' : '—')
+          ? '$sym${_fmt.format(deposit)}' : '')
       .replaceAll('{{BALANCE}}',         '$sym${_fmt.format(balance)}')
       .replaceAll('{{ABA_QR}}',          abaB64 != null
           ? 'data:image/png;base64,$abaB64' : '')
       .replaceAll('{{ACLEDA_QR}}',       acledaB64 != null
           ? 'data:image/png;base64,$acledaB64' : '')
       .replaceAll('{{TELEGRAM_QR}}',     telegramB64 != null
-          ? 'data:image/jpeg;base64,$telegramB64' : '');
+          ? 'data:image/jpeg;base64,$telegramB64' : '')
+      .replaceAll('{{NOTE_SECTION}}',   invoice.notes.isNotEmpty
+          ? '<div class="note-area">${_e(invoice.notes)}</div>' : '');
 
     // ── Show preview overlay; download button inside it calls generateInvoicePdf
     js.context.callMethod(
@@ -148,6 +153,7 @@ class InvoiceHtmlService {
     // Build allRowHtml, skipping truly empty (padding) rows.
     final allRowHtml = <String>[];
     double netTotal = 0;
+    int totalQty = 0;
     for (final r in rows) {
       final qty = r['qty'] ?? '';
       if (qty.isEmpty) continue;
@@ -155,6 +161,7 @@ class InvoiceHtmlService {
       final up       = r['unitPrice'] ?? '';
       final totalVal = double.tryParse(tot.replaceAll(',', '')) ?? 0;
       netTotal += totalVal;
+      totalQty += int.tryParse(qty.replaceAll(',', '')) ?? 0;
       final rowNum = allRowHtml.length + 1;
       allRowHtml.add('<tr>'
           '<td class="cell-no">$rowNum</td>'
@@ -192,6 +199,7 @@ class InvoiceHtmlService {
       year:        year,
       allRowHtml:  allRowHtml,
       netTotal:    netTotal,
+      totalQty:    totalQty,
       sym:         sym,
     );
 
@@ -250,7 +258,8 @@ class InvoiceHtmlService {
       }
     }
 
-    final netTotal = invoices.fold<double>(0, (s, inv) => s + inv.items.fold(0.0, (si, i) => si + i.quantity * i.unitPrice));
+    final netTotal  = invoices.fold<double>(0, (s, inv) => s + inv.items.fold(0.0, (si, i) => si + i.quantity * i.unitPrice));
+    final totalQty  = invoices.fold<int>(0, (s, inv) => s + inv.items.fold(0, (si, i) => si + i.quantity));
 
     // ── Invoice reference number ──────────────────────────────────────────────
     String invoiceNo = 'M-$monthLabel';
@@ -285,6 +294,7 @@ class InvoiceHtmlService {
       year:        year,
       allRowHtml:  allRowHtml,
       netTotal:    netTotal,
+      totalQty:    totalQty,
       sym:         sym,
     );
 
@@ -315,6 +325,7 @@ class InvoiceHtmlService {
     required String year,
     required List<String> allRowHtml,
     required double netTotal,
+    required int totalQty,
     required String sym,
   }) {
     const bodyOpen  = '<body>';
@@ -383,7 +394,7 @@ class InvoiceHtmlService {
             '</tr>');
       }
 
-      final tfoot  = isLast ? _buildTfootHtml(sym, netTotal) : '<tfoot></tfoot>';
+      final tfoot  = isLast ? _buildTfootHtml(sym, netTotal, totalQty) : '<tfoot></tfoot>';
       final bottom = isLast ? _buildBottomHtml(acledaB64, abaB64) : '';
 
       buf.write(pageTpl
@@ -417,7 +428,7 @@ class InvoiceHtmlService {
         '</div>';
   }
 
-  static String _buildTfootHtml(String sym, double netTotal) {
+  static String _buildTfootHtml(String sym, double netTotal, int totalQty) {
     final s = '$sym${_fmt.format(netTotal)}';
     return '<tfoot>'
         '<tr>'
@@ -432,7 +443,8 @@ class InvoiceHtmlService {
         '</tr>'
         '<tr class="grand-total-row">'
         '<td class="sum-empty" colspan="4"></td>'
-        '<td class="sum-label" colspan="2">Grand Total</td>'
+        '<td class="sum-qty">${_intFmt.format(totalQty)}</td>'
+        '<td class="sum-label">Grand Total</td>'
         '<td class="sum-val">$s</td>'
         '</tr>'
         '</tfoot>';

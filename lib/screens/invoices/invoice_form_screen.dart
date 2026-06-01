@@ -22,13 +22,14 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _uuid = const Uuid();
 
-  String _date = DateFormat('yyyy-MM-dd').format(DateTime.now());
+  String _date = '';
   String? _clientId;
   String? _deliveryLocation;
   bool _saving = false;
 
   final _depositCtrl = TextEditingController();
-  final _numberCtrl  = TextEditingController();
+  final _numberCtrl = TextEditingController();
+  final _notesCtrl = TextEditingController();
 
   // Fixed 4 slots: normal/hol, normal/sol, burned/hol, burned/sol
   late final List<_BrickEntry> _entries;
@@ -49,6 +50,7 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
   void dispose() {
     _depositCtrl.dispose();
     _numberCtrl.dispose();
+    _notesCtrl.dispose();
     for (final e in _entries) {
       e.dispose();
     }
@@ -81,6 +83,7 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
       if (inv.deposit > 0) {
         _depositCtrl.text = inv.deposit.toString();
       }
+      _notesCtrl.text = inv.notes;
       for (final item in inv.items) {
         try {
           final entry = _entries.firstWhere(
@@ -285,6 +288,23 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
                   ),
                   const SizedBox(height: 14),
 
+                  // ── Note ──────────────────────────────────────────────
+                  _FormCard(
+                    icon: Icons.note_outlined,
+                    title: provider.isKh ? 'កំណត់សម្គាល់' : 'Note',
+                    child: TextField(
+                      controller: _notesCtrl,
+                      decoration: const InputDecoration(
+                        hintText: 'Optional',
+                        isDense: true,
+                        border: InputBorder.none,
+                      ),
+                      maxLines: 2,
+                      textInputAction: TextInputAction.done,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
                   // ── Items ─────────────────────────────────────────────
                   _FormCard(
                     icon: Icons.inventory_2_outlined,
@@ -391,6 +411,7 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
           deliveryLocation: _deliveryLocation,
           items: items,
           deposit: deposit,
+          notes: _notesCtrl.text.trim(),
         );
 
         if (context.mounted) {
@@ -406,11 +427,12 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
       } else {
         final inv = provider.store.findInvoice(widget.id)!;
         inv.date = _date;
-        if (_numberCtrl.text.trim().isNotEmpty) inv.number = _numberCtrl.text.trim();
+        inv.number = _numberCtrl.text.trim();
         inv.clientId = _clientId;
         inv.deliveryLocation = _deliveryLocation;
         inv.items = items;
         inv.deposit = deposit;
+        inv.notes = _notesCtrl.text.trim();
         await provider.updateInvoice(inv);
         savedInv = inv;
 
@@ -715,7 +737,12 @@ class _DateField extends StatelessWidget {
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: const Icon(Icons.calendar_month_outlined, size: 18, color: AppColors.muted),
-          suffixIcon: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.muted),
+          suffixIcon: value.isNotEmpty
+              ? GestureDetector(
+                  onTap: () => onChanged(''),
+                  child: const Icon(Icons.close_rounded, size: 18, color: AppColors.muted),
+                )
+              : const Icon(Icons.arrow_drop_down_rounded, color: AppColors.muted),
         ),
         child: Text(
           display.isEmpty ? 'Select date' : display,
@@ -1083,8 +1110,8 @@ class _InvoiceNumberField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final parsed    = DateTime.tryParse(date) ?? DateTime.now();
-    final autoNum   = provider.store.nextInvoiceNumber(parsed);
+    final parsed  = DateTime.tryParse(date) ?? DateTime.now();
+    final autoNum = provider.store.nextInvoiceNumber(parsed);
 
     return TextField(
       controller: controller,

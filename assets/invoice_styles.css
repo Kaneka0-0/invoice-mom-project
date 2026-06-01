@@ -495,6 +495,19 @@ body { background: #d8d8d8; display: flex; justify-content: center; padding: 20p
 .tr-3 .tr-amount { border: 1px solid #616D68; }
 
 /* ═══════════════════════════════════════════════════════════════
+   NOTE  (left:32 top:635 width:495)
+   ═══════════════════════════════════════════════════════════════ */
+.note-area {
+  position: absolute;
+  left: 32px;
+  top: 635px;
+  width: 495px;
+  font-family: 'Kantumruy Pro', sans-serif;
+  font-size: 11px;
+  color: #0A0A0A;
+}
+
+/* ═══════════════════════════════════════════════════════════════
    SIGNATURES  (left:32 top:659 width:495 height:107)
    ═══════════════════════════════════════════════════════════════ */
 .signatures-area {

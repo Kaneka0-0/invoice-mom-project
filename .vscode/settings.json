@@ -1,0 +1,8 @@
+{
+  "dart.flutterSdkPath": "/Users/magnus/fvm/versions/3.41.7",
+  "editor.formatOnSave": true,
+  "dart.lineLength": 100,
+  "[html]": {
+    "editor.formatOnSave": false
+  }
+}

@@ -421,6 +421,42 @@ class _MonthlyExportScreenState extends State<MonthlyExportScreen> {
                             ],
                           ),
                         ),
+
+                      // ── Invoice grid ───────────────────────────────────────
+                      if (matched.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            mainAxisExtent: 165,
+                          ),
+                          itemCount: matched.length,
+                          itemBuilder: (context, i) {
+                            final inv = matched[i];
+                            final client = provider.store.findClient(inv.clientId ?? '');
+                            final dateStr = inv.date.isNotEmpty
+                                ? (() {
+                                    try {
+                                      return DateFormat('dd MMM yyyy').format(DateTime.parse(inv.date));
+                                    } catch (_) {
+                                      return inv.date;
+                                    }
+                                  })()
+                                : '—';
+                            return _InvoiceGridCard(
+                              invoice: inv,
+                              clientName: client?.name,
+                              dateStr: dateStr,
+                              sym: sym,
+                              fmt: fmt,
+                            );
+                          },
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -1096,6 +1132,162 @@ class _SpreadsheetRowState extends State<_SpreadsheetRow> {
             borderSide: BorderSide(color: AppColors.forest, width: 1.5),
             borderRadius: BorderRadius.zero,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Invoice grid card (monthly export) ───────────────────────────────────────
+class _InvoiceGridCard extends StatelessWidget {
+  final Invoice invoice;
+  final String? clientName;
+  final String dateStr;
+  final String sym;
+  final NumberFormat fmt;
+
+  const _InvoiceGridCard({
+    required this.invoice,
+    required this.clientName,
+    required this.dateStr,
+    required this.sym,
+    required this.fmt,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final name = clientName ?? invoice.number;
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(8),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(13),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── Document preview area ──────────────────────────────────────
+            Expanded(
+              child: Container(
+                color: const Color(0xFFF4F6F4),
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // mini invoice header bar
+                    Container(
+                      height: 5,
+                      width: 48,
+                      decoration: BoxDecoration(
+                        color: _kDark.withAlpha(160),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    // placeholder content lines
+                    Container(
+                      height: 3,
+                      width: 64,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD1D5DB),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      height: 3,
+                      width: 44,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE5E7EB),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const Spacer(),
+                    // amount — the star of the preview
+                    Text(
+                      '$sym${fmt.format(invoice.total)}',
+                      style: GoogleFonts.inter(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.forest,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── Info strip ────────────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: const BoxDecoration(
+                      color: _kDark,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        initial,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          clientName ?? '—',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.ink,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          dateStr,
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            color: AppColors.muted,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

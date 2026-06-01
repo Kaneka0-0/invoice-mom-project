@@ -73,13 +73,15 @@ class SupabaseSync {
   /// Upserts the invoice row, then replaces all its invoice_items.
   static Future<void> upsertInvoice(Invoice inv) async {
     final row = <String, dynamic>{
-      'id':         inv.id,
-      'number':     inv.number,
-      'client_id':  inv.clientId,
-      'date':       inv.date,
-      'status':     inv.status.name,
-      'subtotal':   inv.subtotal,
-      'total':      inv.total,
+      'id':                inv.id,
+      'number':            inv.number.isNotEmpty ? inv.number : null,
+      'client_id':         inv.clientId,
+      'date':              inv.date.isNotEmpty ? inv.date : null,
+      'status':            inv.status.name,
+      'payment_status':    inv.paymentStatus.name,
+      'subtotal':          inv.subtotal,
+      'tax':               inv.tax,
+      'total':             inv.total,
       'deposit':           inv.deposit,
       'notes':             inv.notes,
       'delivery_location': inv.deliveryLocation,
@@ -88,25 +90,23 @@ class SupabaseSync {
 
     await _db.from('invoices').upsert(row);
 
-    // Replace invoice_items (table may not exist yet — ignore errors)
-    try {
-      await _db.from('invoice_items').delete().eq('invoice_id', inv.id);
-      if (inv.items.isNotEmpty) {
-        await _db.from('invoice_items').insert(
-          inv.items.map((item) => {
-            'id':                 item.id,
-            'invoice_id':         inv.id,
-            'quantity':           item.quantity,
-            'unit_price':         item.unitPrice,
-            'total':              item.total,
-            'price_type':         item.priceType,
-            'brick_category':     item.brickCategory,
-            'brick_type_id':      _brickTypeId(item.priceType),
-            'brick_category_id':  _brickCategoryId(item.brickCategory),
-          }).toList(),
-        );
-      }
-    } catch (_) {}
+    // Replace invoice_items
+    await _db.from('invoice_items').delete().eq('invoice_id', inv.id);
+    if (inv.items.isNotEmpty) {
+      await _db.from('invoice_items').insert(
+        inv.items.map((item) => {
+          'id':                item.id,
+          'invoice_id':        inv.id,
+          'quantity':          item.quantity,
+          'unit_price':        item.unitPrice,
+          'total':             item.total,
+          'price_type':        item.priceType,
+          'brick_category':    item.brickCategory,
+          'brick_type_id':     _brickTypeId(item.priceType),
+          'brick_category_id': _brickCategoryId(item.brickCategory),
+        }).toList(),
+      );
+    }
   }
 
   static Future<void> deleteInvoice(String id) async {
